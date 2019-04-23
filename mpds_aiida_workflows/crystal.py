@@ -1,0 +1,128 @@
+
+"""
+The workflow for AiiDA combining CRYTSAL and MPDS
+"""
+import os
+import numpy as np
+from mpds_client import MPDSDataRetrieval
+
+from aiida.work.workchain import WorkChain
+from aiida.orm.code import Code
+from aiida.common.extendeddicts import AttributeDict
+from aiida_crystal.aiida_compatibility import get_data_class
+from aiida_crystal.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
+
+
+class MPDSCrystalWorkchain(WorkChain):
+    """ A workchain enclosing all calculations for getting as much data from Crystal runs as we can
+    """
+
+    @classmethod
+    def define(cls, spec):
+        super(MPDSCrystalWorkchain, cls).define(spec)
+        # define code inputs
+        spec.input('crystal_code', valid_type=Code, required=True)
+        spec.input('properties_code', valid_type=Code, required=True)
+        # MPDS phase id
+        spec.input('mpds_phase_id', valid_type=get_data_class('int'), required=True)
+        # Basis
+        spec.expose_inputs(BaseCrystalWorkChain, include=['basis_family'])
+        # Parameters (include OPTGEOM, FREQCALC and ELASTCON)
+        spec.input('crystal_parameters', valid_type=get_data_class('parameter'), required=True)
+        spec.input('properties_parameters', valid_type=get_data_class('parameter'), required=True)
+        spec.input('options', valid_type=get_data_class('parameter'), required=True, help="Calculation options")
+        # define workchain routine
+        spec.outline(cls.init_inputs,
+                     cls.validate_inputs,
+                     cls.optimize_geometry,
+                     cls.calculate_phonons,
+                     cls.calculate_elastic_constants,
+                     cls.run_properties_calc,
+                     cls.retrieve_results)
+        # define outputs
+        spec.output('output_structure', valid_type=get_data_class('structure'), required=False)
+        spec.output('output_parameters', valid_type=get_data_class('parameter'), required=False)
+        spec.output('output_wavefunction_formatted', valid_type=get_data_class('singlefile'), required=False)
+        spec.output('output_dos', valid_type=get_data_class('array'), required=False)
+        spec.output('output_bands', valid_type=get_data_class('array.bands'), required=False)
+
+    def init_inputs(self):
+        self.ctx.inputs = AttributeDict()
+        self.ctx.inputs.crystal = AttributeDict()
+        self.ctx.inputs.properties = AttributeDict()
+        # set the crystal workchain inputs; structure is found by get_structure
+        self.ctx.inputs.crystal.code = self.inputs.crystal_code
+        self.ctx.inputs.crystal.basis_family = self.inputs.basis_family
+        self.ctx.inputs.crystal.structure = self.get_geometry()
+        self.ctx.inputs.crystal.options = self.inputs.options
+        # set the properties workchain inputs
+        self.ctx.inputs.properties.code = self.inputs.properties_code
+        self.ctx.inputs.properties.parameters = self.inputs.properties_parameters
+        self.ctx.inputs.properties.options = self.inputs.options
+        # properties wavefunction input must be set after crystal run
+
+    def get_geometry(self):
+        """Getting geometry from MPDS database"""
+        key = os.getenv('MPDS_KEY')
+        client = MPDSDataRetrieval(api_key=key)
+        answer = client.get_data(
+            {"elements": "Mg-O", "classes": "binary", "props": "atomic structure"},
+            # {"props": "atomic structure"},
+            phases=[self.inputs.mpds_phase_id.value, ],
+            fields={'S': [
+                'cell_abc',
+                'sg_n',
+                'setting',
+                'basis_noneq',
+                'els_noneq'
+            ]}
+        )
+        structs = [client.compile_crystal(line, flavor='ase') for line in answer]
+        minimal_struct = min([len(s) for s in structs])
+        # get structures with minimal number of atoms and find the one with median cell vectors
+        cells = np.array([s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct])
+        median_cell = np.where(np.all(cells == np.median(cells, axis=0), axis=1))[0][0]
+        return get_data_class('structure')(ase=structs[median_cell])
+
+    def validate_inputs(self):
+        crystal_parameters = self.inputs.crystal_parameters.get_dict()
+        geometry_parameters = crystal_parameters.pop('geometry')
+        # We are going to do three CRYSTAL calculations. Let's prepare parameter inputs
+        calc_keys = ['optimise', 'frequency', 'elastic']
+        assert all([x in geometry_parameters for x in calc_keys])
+        self.ctx.crystal_parameters = AttributeDict()
+        for key in calc_keys:
+            self.ctx.crystal_parameters[key] = crystal_parameters.copy()
+            self.ctx.crystal_parameters[key].update(
+                {'geometry': {key: geometry_parameters[key]}}
+            )
+
+    def optimize_geometry(self):
+        self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.optimise)
+        crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
+        return self.to_context(optimise=crystal_run)
+
+    def calculate_phonons(self):
+        # run phonons and elastic calcs with optimised structure
+        self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
+        self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.frequency)
+        crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
+        return self.to_context(frequency=crystal_run)
+
+    def calculate_elastic_constants(self):
+        self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
+        self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.elastic)
+        crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
+        return self.to_context(elastic=crystal_run)
+
+    def run_properties_calc(self):
+        self.ctx.inputs.properties.wavefunction = self.ctx.optimise.out.output_wavefunction
+        properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
+        return self.to_context(properties=properties_run)
+
+    def retrieve_results(self):
+        # expose all outputs of optimized structure and properties calcs
+        self.out_many(self.exposed_outputs(self.ctx.optimise, BaseCrystalWorkChain))
+        self.out('frequency_parameters', self.ctx.frequency.out.output_parameters)
+        self.out('elastic_parameters', self.ctx.elastic.out.output_parameters)
+        self.out_many(self.exposed_outputs(self.ctx.properties, BasePropertiesWorkChain))

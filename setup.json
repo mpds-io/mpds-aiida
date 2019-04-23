@@ -1,0 +1,28 @@
+{
+    "name": "mpds-aiida-workflows",
+    "author": "Andrey Sobolev",
+    "author_email": "as@tilde.pro",
+    "description": "Aiida workflows for MPDS based on CRYSTAL",
+    "url": "https://github.com/mpds-io/mpds-aiida",
+    "license": "MIT",
+    "classifiers": [
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Topic :: Scientific/Engineering :: Chemistry",
+        "Topic :: Scientific/Engineering :: Physics"
+    ],
+    "entry_points": {
+        "aiida.workflows": [
+            "crystal.base = mpds_aiida_workflows.crystal:MPDSCrystalWorkChain"
+        ]
+    },
+    "include_package_data": true,
+    "setup_requires": ["reentry"],
+    "reentry_register": true,
+    "install_requires": [
+        "aiida-core==1.0.0a4",
+        "mpds_client"
+    ]
+}
