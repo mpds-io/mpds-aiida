@@ -8,7 +8,7 @@ import shutil
 from hashlib import md5
 from mpds_aiida_workflows.tests import TEST_DIR
 
-inputs = {'f5e32d03b2c5488de985d62edaf8a57e': {'fort.34': '6b1423d9ecd3ba3c7395f2079555578c'}}
+inputs = {'f5e32d03b2c5488de985d62edaf8a57e': {'fort.34': '2b4208652b93ff2fa0ae961331f92ee5'}}
 outputs = {'f5e32d03b2c5488de985d62edaf8a57e': 'optimise'}
 
 

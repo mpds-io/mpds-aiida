@@ -67,7 +67,6 @@ class MPDSCrystalWorkchain(WorkChain):
         client = MPDSDataRetrieval(api_key=key)
         answer = client.get_data(
             {"elements": "Mg-O", "classes": "binary", "props": "atomic structure"},
-            # {"props": "atomic structure"},
             phases=[self.inputs.mpds_phase_id.value, ],
             fields={'S': [
                 'cell_abc',
@@ -100,9 +99,11 @@ class MPDSCrystalWorkchain(WorkChain):
     def optimize_geometry(self):
         self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.optimise)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
+        print("We are there!")
         return self.to_context(optimise=crystal_run)
 
     def calculate_phonons(self):
+        print("We are here!")
         # run phonons and elastic calcs with optimised structure
         self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
         self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.frequency)
