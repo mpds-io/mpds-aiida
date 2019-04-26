@@ -1,6 +1,6 @@
 
 """
-The workflow for AiiDA combining CRYTSAL and MPDS
+The workflow for AiiDA combining CRYSTAL and MPDS
 """
 import os
 import numpy as np
@@ -71,7 +71,6 @@ class MPDSCrystalWorkchain(WorkChain):
             fields={'S': [
                 'cell_abc',
                 'sg_n',
-                'setting',
                 'basis_noneq',
                 'els_noneq'
             ]}
