@@ -47,7 +47,8 @@ def test_properties_code(test_computer):
     code = Code()
     code.label = 'properties'
     code.description = 'CRYSTAL properties code'
-    code.set_remote_computer_exec((test_computer, '/usr/local/bin/properties'))
+    mock_exec = os.path.join(TEST_DIR, 'mock', 'crystal')
+    code.set_remote_computer_exec((test_computer, mock_exec))
     code.set_input_plugin_name('crystal.properties')
     return code
 
@@ -84,6 +85,9 @@ def properties_calc_parameters():
         "band": {
             "shrink": 8,
             "k_points": 30,
+        },
+        "newk": {
+            "k_points": [6, 6],
         },
         "dos": {
             "n_e": 100

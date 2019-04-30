@@ -24,4 +24,9 @@ def test_workchain_run(test_crystal_code,
             'num_mpiprocs_per_machine': 1
         }
     })
-    run(MPDSCrystalWorkchain, **inputs)
+    results = run(MPDSCrystalWorkchain, **inputs)
+    assert 'output_parameters' in results
+    assert 'frequency_parameters' in results
+    assert 'elastic_parameters' in results
+    assert 'output_dos' in results
+    assert 'output_bands' in results

@@ -40,11 +40,10 @@ class MPDSCrystalWorkchain(WorkChain):
                      cls.run_properties_calc,
                      cls.retrieve_results)
         # define outputs
-        spec.output('output_structure', valid_type=get_data_class('structure'), required=False)
-        spec.output('output_parameters', valid_type=get_data_class('parameter'), required=False)
-        spec.output('output_wavefunction_formatted', valid_type=get_data_class('singlefile'), required=False)
-        spec.output('output_dos', valid_type=get_data_class('array'), required=False)
-        spec.output('output_bands', valid_type=get_data_class('array.bands'), required=False)
+        spec.output('frequency_parameters', valid_type=get_data_class('parameter'), required=False)
+        spec.output('elastic_parameters', valid_type=get_data_class('parameter'), required=False)
+        spec.expose_outputs(BaseCrystalWorkChain)
+        spec.expose_outputs(BasePropertiesWorkChain)
 
     def init_inputs(self):
         self.ctx.inputs = AttributeDict()
@@ -98,11 +97,9 @@ class MPDSCrystalWorkchain(WorkChain):
     def optimize_geometry(self):
         self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.optimise)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
-        print("We are there!")
         return self.to_context(optimise=crystal_run)
 
     def calculate_phonons(self):
-        print("We are here!")
         # run phonons and elastic calcs with optimised structure
         self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
         self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.frequency)
