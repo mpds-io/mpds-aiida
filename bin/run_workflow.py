@@ -22,7 +22,7 @@ inputs.crystal_parameters = DataFactory('parameter')(dict=calc['parameters']['cr
 inputs.properties_parameters = DataFactory('parameter')(dict=calc['parameters']['properties'])
 
 inputs.basis_family = DataFactory('str')(calc['basis_family'])
-inputs.mpds_query = DataFactory('str')(calc['structure'])
+inputs.mpds_query = DataFactory('parameter')(dict=calc['structure'])
 
 inputs.options = DataFactory('parameter')(dict=calc['options'])
 

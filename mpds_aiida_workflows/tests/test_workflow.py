@@ -19,7 +19,8 @@ def test_workchain_run(test_crystal_code,
     inputs.basis_family = DataFactory('str')('sto-3g')
     inputs.mpds_query = DataFactory('parameter')(dict={
         "classes": "binary",
-        "phase": "MgO/225/cF8"
+        "formulae": "MgO",
+        "sgs": 225
     })   # MgO 225
     inputs.options = DataFactory('parameter')(dict={
         'resources': {
