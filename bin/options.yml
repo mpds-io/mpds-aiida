@@ -1,0 +1,41 @@
+cluster: hetzner
+
+codes:
+  - crystal
+  - properties
+
+options:
+  resources:
+    num_machines: 1
+    num_mpiprocs_per_machine: 1
+
+basis_family: sto-3g
+
+structure:
+  formulae: MgO
+  sgs: 225
+  classes: binary
+
+parameters:
+  crystal:
+    title: Crystal calc
+    scf:
+      kpoints: [8, 8]
+    geometry:
+      optimise:
+        type: FULLOPTG
+    frequency:
+      ir:
+        type: INTCPHF
+        raman: true
+    elastic:
+      type: ELASTCON
+
+  properties:
+    band:
+      shrink: 8
+      k_points: 30
+    newk:
+      k_points: [6, 6]
+    dos:
+      n_e: 100

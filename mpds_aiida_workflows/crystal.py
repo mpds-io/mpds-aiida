@@ -24,7 +24,7 @@ class MPDSCrystalWorkchain(WorkChain):
         spec.input('crystal_code', valid_type=Code, required=True)
         spec.input('properties_code', valid_type=Code, required=True)
         # MPDS phase id
-        spec.input('mpds_phase_id', valid_type=get_data_class('int'), required=True)
+        spec.input('mpds_query', valid_type=get_data_class('parameter'), required=True)
         # Basis
         spec.expose_inputs(BaseCrystalWorkChain, include=['basis_family'])
         # Parameters (include OPTGEOM, FREQCALC and ELASTCON)
@@ -64,9 +64,11 @@ class MPDSCrystalWorkchain(WorkChain):
         """Getting geometry from MPDS database"""
         key = os.getenv('MPDS_KEY')
         client = MPDSDataRetrieval(api_key=key)
+        query_dict = self.inputs.mpds_query.get_dict()
+        # insert props: atomic structure to query. Might check if it's already set to smth
+        query_dict['props'] = 'atomic structure'
         answer = client.get_data(
-            {"elements": "Mg-O", "classes": "binary", "props": "atomic structure"},
-            phases=[self.inputs.mpds_phase_id.value, ],
+            query_dict,
             fields={'S': [
                 'cell_abc',
                 'sg_n',
