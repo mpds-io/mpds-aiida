@@ -15,8 +15,8 @@ with open('options.yml') as f:
     calc = yaml.load(f.read())
 
 inputs = MPDSCrystalWorkchain.get_builder()
-inputs.crystal_code = Code.get_from_string('{}@{}'.format(calc['cluster'], calc['codes'][0]))
-inputs.properties_code = Code.get_from_string('{}@{}'.format(calc['cluster'], calc['codes'][1]))
+inputs.crystal_code = Code.get_from_string('{}@{}'.format(calc['codes'][0], calc['cluster']))
+inputs.properties_code = Code.get_from_string('{}@{}'.format(calc['codes'][1], calc['cluster']))
 
 inputs.crystal_parameters = DataFactory('parameter')(dict=calc['parameters']['crystal'])
 inputs.properties_parameters = DataFactory('parameter')(dict=calc['parameters']['properties'])
