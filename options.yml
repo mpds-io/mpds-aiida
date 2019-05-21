@@ -24,12 +24,12 @@ parameters:
     geometry:
       optimise:
         type: FULLOPTG
-    frequency:
-      ir:
-        type: INTCPHF
-        raman: true
-    elastic:
-      type: ELASTCON
+      frequency:
+        ir:
+          type: INTCPHF
+          raman: true
+      elastic:
+        type: ELASTCON
 
   properties:
     band:
