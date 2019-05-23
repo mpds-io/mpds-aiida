@@ -29,7 +29,8 @@ parameters:
     title: Crystal calc
     scf:
       k_points: [8, 8]
-      xc: PBE0
+      dft:
+        xc: PBE0
     geometry:
       optimise:
         type: FULLOPTG
