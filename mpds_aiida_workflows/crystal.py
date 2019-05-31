@@ -80,8 +80,9 @@ class MPDSCrystalWorkchain(WorkChain):
         minimal_struct = min([len(s) for s in structs])
         # get structures with minimal number of atoms and find the one with median cell vectors
         cells = np.array([s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct])
-        median_cell = np.where(np.all(cells == np.median(cells, axis=0), axis=1))[0][0]
-        return get_data_class('structure')(ase=structs[median_cell])
+        median_cell = np.median(cells, axis=0)
+        median_idx = int(np.argmin(np.sum((cells - median_cell)**2, axis=1)**0.5))
+        return get_data_class('structure')(ase=structs[median_idx])
 
     def validate_inputs(self):
         crystal_parameters = self.inputs.crystal_parameters.get_dict()

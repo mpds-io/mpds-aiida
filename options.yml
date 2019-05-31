@@ -37,7 +37,7 @@ parameters:
       frequency:
         ir:
           type: INTCPHF
-          raman: true
+        raman: true
       elastic:
         type: ELASTCON
   # and there go properties calc parameters (see .d3 schema)
