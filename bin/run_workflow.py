@@ -9,6 +9,7 @@ import yaml
 from aiida.orm import DataFactory, Code
 from aiida.work import submit
 from mpds_aiida_workflows.crystal import MPDSCrystalWorkchain
+from .helper import get_phases
 
 
 with open('options.yml') as f:
@@ -22,11 +23,13 @@ inputs.crystal_parameters = DataFactory('parameter')(dict=calc['parameters']['cr
 inputs.properties_parameters = DataFactory('parameter')(dict=calc['parameters']['properties'])
 
 inputs.basis_family = DataFactory('str')(calc['basis_family'])
-inputs.mpds_query = DataFactory('parameter')(dict=calc['structure'])
+# inputs.mpds_query = DataFactory('parameter')(dict=calc['structure'])
 
 inputs.options = DataFactory('parameter')(dict=calc['options'])
 
-wc = submit(MPDSCrystalWorkchain, **inputs)
-print("submitted WorkChain; PK = {}".format(
-    wc.dbnode.pk))
+for phase in get_phases():
+    inputs.mpds_query = DataFactory('parameter')(dict=phase)
+    inputs.label = '{formula} ({sg})'.format(formula=phase['formulae'], sg=phase['sgs'])
+    wc = submit(MPDSCrystalWorkchain, **inputs)
+    print("submitted WorkChain; PK = {}".format(wc.dbnode.pk))
 

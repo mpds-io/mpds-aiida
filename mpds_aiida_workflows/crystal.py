@@ -98,24 +98,28 @@ class MPDSCrystalWorkchain(WorkChain):
             )
 
     def optimize_geometry(self):
+        self.ctx.inputs.crystal.label = 'Geometry optimization'
         self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.optimise)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(optimise=crystal_run)
 
     def calculate_phonons(self):
         # run phonons and elastic calcs with optimised structure
+        self.ctx.inputs.crystal.label = 'Phonon frequency calculation'
         self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
         self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.frequency)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(frequency=crystal_run)
 
     def calculate_elastic_constants(self):
+        self.ctx.inputs.crystal.label = 'Elastic constants calculation'
         self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
         self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.elastic)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(elastic=crystal_run)
 
     def run_properties_calc(self):
+        self.ctx.inputs.properties.label = 'One-electron properties calculation'
         self.ctx.inputs.properties.wavefunction = self.ctx.optimise.out.output_wavefunction
         properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
         return self.to_context(properties=properties_run)
