@@ -8,13 +8,13 @@ import shutil
 from hashlib import md5
 from mpds_aiida_workflows.tests import TEST_DIR
 
-inputs = {'1c7aa9741156b9e55bb317772077bf0b': {'fort.34': '6b1423d9ecd3ba3c7395f2079555578c'},
-          '69ef9865d836e0b3f4d38e87b41fe7c7': {'fort.34': '5537457e809147c474428dc2bcc32c5f'},
-          '58a65239e738d951fe76d4b76247f127': {'fort.34': '5537457e809147c474428dc2bcc32c5f'},
+inputs = {'a97aea7204e8ada080e2be6c29344384': {'fort.34': '6b1423d9ecd3ba3c7395f2079555578c'},
+          '226706c6adb6aaa7fd0b6338dc6cc92f': {'fort.34': '5537457e809147c474428dc2bcc32c5f'},
+          '11c3f2ef8e7d603d5602142e464b692c': {'fort.34': '5537457e809147c474428dc2bcc32c5f'},
           '8731c858bbe210cb21d1dff45eb9353b': {'fort.9': '909760912d24b5273f2eeea030f12a8c'}}
-outputs = {'1c7aa9741156b9e55bb317772077bf0b': 'optimise',
-           '69ef9865d836e0b3f4d38e87b41fe7c7': 'elastic',
-           '58a65239e738d951fe76d4b76247f127': 'frequency',
+outputs = {'a97aea7204e8ada080e2be6c29344384': 'optimise',
+           '226706c6adb6aaa7fd0b6338dc6cc92f': 'elastic',
+           '11c3f2ef8e7d603d5602142e464b692c': 'frequency',
            '8731c858bbe210cb21d1dff45eb9353b': 'properties'
            }
 

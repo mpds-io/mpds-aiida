@@ -1,5 +1,5 @@
 # aiida computer name
-cluster: hetzner
+cluster: torquessh
 
 # the first code name should be Pcrystal if we want to run CRYSTAL in parallel
 # (num_machines * num_mpiprocs_per_machine > 1)
@@ -12,10 +12,10 @@ codes:
 options:
   resources:
     num_machines: 1
-    num_mpiprocs_per_machine: 4
+    num_mpiprocs_per_machine: 2
 
 # basis family should be uploaded first, then its name (not description!) can be put below
-basis_family: TVZP
+basis_family: POB-TZVP
 
 # here come valid MPDS API call parameters
 structure:
@@ -29,7 +29,7 @@ parameters:
     title: Crystal calc
     scf:
       k_points: [8, 8]
-      dft:
+      dft:K
         xc: PBE0
     geometry:
       optimise:
@@ -48,4 +48,4 @@ parameters:
     newk:
       k_points: [6, 6]
     dos:
-      n_e: 100
+      n_e: 1000

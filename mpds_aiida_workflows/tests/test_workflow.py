@@ -46,7 +46,7 @@ def test_mpds():
     answer = client.get_data(
         query_dict,
         fields={'S': [
-            'phase_id'
+            'phase',
         ]}
     )
     assert len(set(_[0] for _ in answer)) == 1
