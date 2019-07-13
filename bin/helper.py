@@ -18,6 +18,7 @@ def get_formulae():
 
 
 def get_phases():
+    return {'formulae': 'MgO', 'sgs': 225}
     key = os.getenv('MPDS_KEY', None)
     if key is None:
         raise EnvironmentError('Environment variable MPDS_KEY not set, aborting')

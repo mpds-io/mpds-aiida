@@ -1,49 +1,41 @@
 # aiida computer name
-cluster: torquessh
+cluster: hetzner
 
-# the first code name should be Pcrystal if we want to run CRYSTAL in parallel
-# (num_machines * num_mpiprocs_per_machine > 1)
 codes:
   - Pcrystal
   - properties
 
-# here any valid AiiDA scheduler option can be present
-# (see e.g. https://aiida.readthedocs.io/projects/aiida-core/en/v0.12.3/apidoc/aiida.scheduler.html#aiida.scheduler.datastructures.JobTemplate)
 options:
   resources:
     num_machines: 1
-    num_mpiprocs_per_machine: 2
+    num_mpiprocs_per_machine: 4
 
-# basis family should be uploaded first, then its name (not description!) can be put below
 basis_family: POB-TZVP
 
-# here come valid MPDS API call parameters
 structure:
-  formulae: MgO
-  sgs: 225
-  classes: binary
+  formulae: NaCl
+  sgs: 221
 
 parameters:
-  # crystal calc parameters (see .d12 schema)
   crystal:
     title: Crystal calc
     scf:
       k_points: [8, 8]
-      dft:K
+      dft:
         xc: PBE0
     geometry:
       optimise:
-        type: FULLOPTG
+        type: CELLONLY
       frequency:
         ir:
           type: INTCPHF
         raman: true
       elastic:
         type: ELASTCON
-  # and there go properties calc parameters (see .d3 schema)
+
   properties:
     band:
-      shrink: 8
+      shrink: 6
       k_points: 30
     newk:
       k_points: [6, 6]
