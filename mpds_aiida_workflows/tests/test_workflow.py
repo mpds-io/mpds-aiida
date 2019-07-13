@@ -22,6 +22,7 @@ def test_workchain_run(test_crystal_code,
         "formulae": "MgO",
         "sgs": 225
     })   # MgO 225
+    inputs.label = 'MgO/225/PS'
     inputs.options = DataFactory('parameter')(dict={
         'resources': {
             'num_machines': 1,
@@ -29,6 +30,7 @@ def test_workchain_run(test_crystal_code,
         }
     })
     results = run(MPDSCrystalWorkchain, **inputs)
+    print(results)
     assert 'output_parameters' in results
     assert 'frequency_parameters' in results
     assert 'elastic_parameters' in results
