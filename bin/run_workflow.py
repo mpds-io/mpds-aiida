@@ -13,8 +13,8 @@ from mpds_aiida_workflows.crystal import MPDSCrystalWorkchain
 
 
 def get_formulae():
-    el1 = ['Li', 'Na', 'K']
-    el2 = ['F', 'Cl', 'Br']
+    el1 = ['Li', 'Na', 'K', 'Rb', 'Cs']
+    el2 = ['F', 'Cl', 'Br', 'I']
     # yield {'elements': 'Mg-O', 'classes': 'binary'}
     for pair in product(el1, el2):
         yield {'elements': '-'.join(pair), 'classes': 'binary'}
@@ -27,13 +27,14 @@ def get_phases():
     cols = ['phase', 'chemical_formula', 'sg_n']
     client = MPDSDataRetrieval(api_key=key)
     for formula in get_formulae():
+
         formula.update({'props': 'atomic structure'})
         data = client.get_data(formula, fields={'S': cols})
         data_df = pd.DataFrame(data=data, columns=cols).dropna(axis=0, how="all", subset=["phase"])
-        for phase in data_df.drop_duplicates():
+        for _, phase in data_df.drop_duplicates().iterrows():
             yield {'phase': phase['phase'],
                    'formulae': phase['chemical_formula'],
-                   'sgs': phase['sg_n']}
+                   'sgs': int(phase['sg_n'])}
 
 
 with open('options.yml') as f:
@@ -52,8 +53,8 @@ inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create(calc[
 inputs.options = DataFactory('parameter')(dict=calc['options'])
 
 for phase in get_phases():
+    inputs.label = phase.pop('phase')
     inputs.mpds_query = DataFactory('parameter')(dict=phase)
-    inputs.label = phase['phase']
     wc = submit(MPDSCrystalWorkchain, **inputs)
     print("submitted WorkChain; PK = {}".format(wc.dbnode.pk))
 
