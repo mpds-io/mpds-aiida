@@ -6,8 +6,8 @@ import os
 import numpy as np
 from mpds_client import MPDSDataRetrieval
 
-from aiida.work.workchain import WorkChain
-from aiida.orm.code import Code
+from aiida.engine import WorkChain
+from aiida.orm import Code
 from aiida.common.extendeddicts import AttributeDict
 from aiida_crystal.aiida_compatibility import get_data_class
 from aiida_crystal.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
