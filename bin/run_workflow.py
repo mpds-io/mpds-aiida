@@ -7,7 +7,8 @@ import pandas as pd
 from itertools import product
 from mpds_client import MPDSDataRetrieval
 
-from aiida.plugins import DataFactory, Code
+from aiida.plugins import DataFactory
+from aiida.orm import Code
 from aiida.engine import submit
 from mpds_aiida_workflows.crystal import MPDSCrystalWorkchain
 
@@ -44,17 +45,17 @@ inputs = MPDSCrystalWorkchain.get_builder()
 inputs.crystal_code = Code.get_from_string('{}@{}'.format(calc['codes'][0], calc['cluster']))
 inputs.properties_code = Code.get_from_string('{}@{}'.format(calc['codes'][1], calc['cluster']))
 
-inputs.crystal_parameters = DataFactory('parameter')(dict=calc['parameters']['crystal'])
-inputs.properties_parameters = DataFactory('parameter')(dict=calc['parameters']['properties'])
+inputs.crystal_parameters = DataFactory('dict')(dict=calc['parameters']['crystal'])
+inputs.properties_parameters = DataFactory('dict')(dict=calc['parameters']['properties'])
 
 inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create(calc['basis_family'])
 # inputs.mpds_query = DataFactory('parameter')(dict=calc['structure'])
 
-inputs.options = DataFactory('parameter')(dict=calc['options'])
+inputs.options = DataFactory('dict')(dict=calc['options'])
 
 for phase in get_phases():
     inputs.label = phase.pop('phase')
-    inputs.mpds_query = DataFactory('parameter')(dict=phase)
+    inputs.mpds_query = DataFactory('dict')(dict=phase)
     wc = submit(MPDSCrystalWorkchain, **inputs)
     print("submitted WorkChain; PK = {}".format(wc.dbnode.pk))
 
