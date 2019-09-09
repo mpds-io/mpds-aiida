@@ -24,13 +24,13 @@ class MPDSCrystalWorkchain(WorkChain):
         spec.input('crystal_code', valid_type=Code, required=True)
         spec.input('properties_code', valid_type=Code, required=True)
         # MPDS phase id
-        spec.input('mpds_query', valid_type=get_data_class('parameter'), required=True)
+        spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
         # Basis
         spec.expose_inputs(BaseCrystalWorkChain, include=['basis_family'])
         # Parameters (include OPTGEOM, FREQCALC and ELASTCON)
-        spec.input('crystal_parameters', valid_type=get_data_class('parameter'), required=True)
-        spec.input('properties_parameters', valid_type=get_data_class('parameter'), required=True)
-        spec.input('options', valid_type=get_data_class('parameter'), required=True, help="Calculation options")
+        spec.input('crystal_parameters', valid_type=get_data_class('dict'), required=True)
+        spec.input('properties_parameters', valid_type=get_data_class('dict'), required=True)
+        spec.input('options', valid_type=get_data_class('dict'), required=True, help="Calculation options")
         # define workchain routine
         spec.outline(cls.init_inputs,
                      cls.validate_inputs,
@@ -40,8 +40,8 @@ class MPDSCrystalWorkchain(WorkChain):
                      cls.run_properties_calc,
                      cls.retrieve_results)
         # define outputs
-        spec.output('frequency_parameters', valid_type=get_data_class('parameter'), required=False)
-        spec.output('elastic_parameters', valid_type=get_data_class('parameter'), required=False)
+        spec.output('frequency_parameters', valid_type=get_data_class('dict'), required=False)
+        spec.output('elastic_parameters', valid_type=get_data_class('dict'), required=False)
         spec.expose_outputs(BaseCrystalWorkChain)
         spec.expose_outputs(BasePropertiesWorkChain)
 
@@ -98,39 +98,39 @@ class MPDSCrystalWorkchain(WorkChain):
             )
 
     def optimize_geometry(self):
-        if self.inputs.label:
-            self.ctx.inputs.crystal.label = '{}: Geometry optimization'.format(self.inputs.label)
-        self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.optimise)
+        if self.inputs.options.label:
+            self.ctx.inputs.crystal.options.label = '{}: Geometry optimization'.format(self.inputs.label)
+        self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.optimise)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(optimise=crystal_run)
 
     def calculate_phonons(self):
         # run phonons and elastic calcs with optimised structure
-        if self.inputs.label:
-            self.ctx.inputs.crystal.label = '{}: Phonon frequency calculation'.format(self.inputs.label)
-        self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
-        self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.frequency)
+        if self.inputs.options.label:
+            self.ctx.inputs.crystal.options.label = '{}: Phonon frequency calculation'.format(self.inputs.label)
+        self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
+        self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.frequency)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(frequency=crystal_run)
 
     def calculate_elastic_constants(self):
-        if self.inputs.label:
-            self.ctx.inputs.crystal.label = '{}: Elastic constants calculation'.format(self.inputs.label)
-        self.ctx.inputs.crystal.structure = self.ctx.optimise.out.output_structure
-        self.ctx.inputs.crystal.parameters = get_data_class('parameter')(dict=self.ctx.crystal_parameters.elastic)
+        if self.inputs.options.label:
+            self.ctx.inputs.crystal.options.label = '{}: Elastic constants calculation'.format(self.inputs.label)
+        self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
+        self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.elastic)
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(elastic=crystal_run)
 
     def run_properties_calc(self):
-        if self.inputs.label:
-            self.ctx.inputs.properties.label = '{}: One-electron properties calculation'.format(self.inputs.label)
-        self.ctx.inputs.properties.wavefunction = self.ctx.optimise.out.output_wavefunction
+        if self.inputs.options.label:
+            self.ctx.inputs.properties.options.label = '{}: One-electron properties calculation'.format(self.inputs.label)
+        self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
         properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
         return self.to_context(properties=properties_run)
 
     def retrieve_results(self):
         # expose all outputs of optimized structure and properties calcs
         self.out_many(self.exposed_outputs(self.ctx.optimise, BaseCrystalWorkChain))
-        self.out('frequency_parameters', self.ctx.frequency.out.output_parameters)
-        self.out('elastic_parameters', self.ctx.elastic.out.output_parameters)
+        self.out('frequency_parameters', self.ctx.frequency.outputs.output_parameters)
+        self.out('elastic_parameters', self.ctx.elastic.outputs.output_parameters)
         self.out_many(self.exposed_outputs(self.ctx.properties, BasePropertiesWorkChain))

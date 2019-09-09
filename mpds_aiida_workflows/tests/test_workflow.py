@@ -17,13 +17,13 @@ def test_workchain_run(test_crystal_code,
     inputs.crystal_parameters = crystal_calc_parameters
     inputs.properties_parameters = properties_calc_parameters
     inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create('STO-3G')
-    inputs.mpds_query = DataFactory('parameter')(dict={
+    inputs.mpds_query = DataFactory('dict')(dict={
         "classes": "binary",
         "formulae": "MgO",
         "sgs": 225
     })   # MgO 225
-    inputs.label = 'MgO/225/PS'
-    inputs.options = DataFactory('parameter')(dict={
+    inputs.options = DataFactory('dict')(dict={
+        'label': 'MgO/225/PS',
         'resources': {
             'num_machines': 1,
             'num_mpiprocs_per_machine': 1
