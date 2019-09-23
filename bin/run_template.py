@@ -38,7 +38,7 @@ def get_phases():
                    'sgs': int(phase['sg_n'])}
 
 
-with open('options.yml') as f:
+with open('options_template.yml') as f:
     calc = yaml.load(f.read())
 
 inputs = MPDSCrystalWorkchain.get_builder()
@@ -49,7 +49,6 @@ inputs.crystal_parameters = DataFactory('dict')(dict=calc['parameters']['crystal
 inputs.properties_parameters = DataFactory('dict')(dict=calc['parameters']['properties'])
 
 inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create(calc['basis_family'])
-# inputs.mpds_query = DataFactory('parameter')(dict=calc['structure'])
 
 inputs.options = DataFactory('dict')(dict=calc['options'])
 

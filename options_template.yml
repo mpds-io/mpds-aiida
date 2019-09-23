@@ -15,7 +15,8 @@ options:
     num_mpiprocs_per_machine: 2
 
 # basis family should be uploaded first, then its name (not description!) can be put below
-basis_family: POB-TZVP
+# basis_family: POB-TZVP
+basis_family: minimal
 
 # here come valid MPDS API call parameters
 structure:
@@ -29,7 +30,7 @@ parameters:
     title: Crystal calc
     scf:
       k_points: [8, 8]
-      dft:K
+      dft:
         xc: PBE0
     geometry:
       optimise:
