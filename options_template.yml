@@ -10,6 +10,9 @@ codes:
 # here any valid AiiDA scheduler option can be present
 # (see e.g. https://aiida.readthedocs.io/projects/aiida-core/en/v0.12.3/apidoc/aiida.scheduler.html#aiida.scheduler.datastructures.JobTemplate)
 options:
+  need_phonons: False
+  need_elastic_constants: True
+  need_properties: True
   resources:
     num_machines: 1
     num_mpiprocs_per_machine: 2
@@ -35,11 +38,11 @@ parameters:
     geometry:
       optimise:
         type: FULLOPTG
-      frequency:
+      phonons:
         ir:
           type: INTCPHF
         raman: true
-      elastic:
+      elastic_constants:
         type: ELASTCON
   # and there go properties calc parameters (see .d3 schema)
   properties:

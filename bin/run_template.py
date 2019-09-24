@@ -53,7 +53,7 @@ inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create(calc[
 inputs.options = DataFactory('dict')(dict=calc['options'])
 
 for phase in get_phases():
-    inputs.label = phase.pop('phase')
+    inputs.options['label'] = phase.pop('phase')
     inputs.mpds_query = DataFactory('dict')(dict=phase)
     wc = submit(MPDSCrystalWorkchain, **inputs)
     print("submitted WorkChain; PK = {}".format(wc.dbnode.pk))
