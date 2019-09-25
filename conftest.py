@@ -4,7 +4,7 @@ initialise a text database and profile
 import tempfile
 import shutil
 
-from aiida.utils.fixtures import fixture_manager
+from aiida.manage.fixtures import fixture_manager
 import pytest
 
 

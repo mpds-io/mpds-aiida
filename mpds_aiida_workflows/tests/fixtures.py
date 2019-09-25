@@ -6,22 +6,18 @@ from mpds_aiida_workflows.tests import TEST_DIR
 
 @pytest.fixture
 def test_computer(aiida_profile, new_workdir):
-    from aiida.common.exceptions import NotExistent
+    from aiida.orm import Computer
+    from aiida.common import NotExistent
     try:
-        computer = aiida_profile._backend.computers.get(name='localhost')
+        computer = Computer.objects.get(name='localhost')
     except NotExistent:
-        computer = aiida_profile._backend.computers.create(
+        computer = Computer(
                 name='localhost',
                 description='localhost computer set up by aiida_crystal tests',
                 hostname='localhost',
                 workdir=new_workdir,
                 transport_type='local',
-                scheduler_type='direct',
-                enabled_state=True)
-    computer.store()
-    authinfo = aiida_profile._backend.authinfos.create(computer=computer,
-                                                       user=aiida_profile._backend.users.get_automatic_user())
-    authinfo.store()
+                scheduler_type='direct')
     return computer
 
 
@@ -55,8 +51,8 @@ def test_properties_code(test_computer):
 
 @pytest.fixture
 def crystal_calc_parameters():
-    from aiida.orm.data.parameter import ParameterData
-    return ParameterData(dict={
+    from aiida.orm import Dict
+    return Dict(dict={
         "title": "Crystal calc",
         "scf": {
             "k_points": (8, 8)
@@ -80,8 +76,8 @@ def crystal_calc_parameters():
 
 @pytest.fixture
 def properties_calc_parameters():
-    from aiida.orm.data.parameter import ParameterData
-    return ParameterData(dict={
+    from aiida.orm import Dict
+    return Dict(dict={
         "band": {
             "shrink": 8,
             "k_points": 30,
@@ -97,7 +93,7 @@ def properties_calc_parameters():
 
 @pytest.fixture
 def test_basis(aiida_profile):
-    from aiida.common.exceptions import NotExistent
+    from aiida.common import NotExistent
     from mpds_aiida_workflows.tests import TEST_DIR
     from aiida_crystal.data.basis_set import BasisSetData
     upload_basisset_family = BasisSetData.upload_basisset_family

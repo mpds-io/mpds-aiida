@@ -6,11 +6,16 @@ codes:
   - properties
 
 options:
+  need_phonons: False
+  need_elastic_constants: True
+  need_properties: True
   resources:
     num_machines: 1
     num_mpiprocs_per_machine: 4
 
-basis_family: POB-TZVP
+# basis family should be uploaded first, then its name (not description!) can be put below
+# basis_family: POB-TZVP
+basis_family: MINIMAL
 
 structure:
   formulae: NaCl
@@ -21,16 +26,16 @@ parameters:
     title: Crystal calc
     scf:
       k_points: [8, 8]
-      dft:
-        xc: PBE0
+#      dft:
+#        xc: PBE0
     geometry:
       optimise:
-        type: CELLONLY
-      frequency:
+        type: FULLOPTG
+      phonons:
         ir:
           type: INTCPHF
         raman: true
-      elastic:
+      elastic_constants:
         type: ELASTCON
 
   properties:

@@ -9,28 +9,27 @@ def test_workchain_run(test_crystal_code,
                        properties_calc_parameters,
                        test_basis):
     from mpds_aiida_workflows.crystal import MPDSCrystalWorkchain
-    from aiida.orm import DataFactory
-    from aiida.work import run
+    from aiida.plugins import DataFactory
+    from aiida.engine import run
     inputs = MPDSCrystalWorkchain.get_builder()
     inputs.crystal_code = test_crystal_code
     inputs.properties_code = test_properties_code
     inputs.crystal_parameters = crystal_calc_parameters
     inputs.properties_parameters = properties_calc_parameters
     inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create('STO-3G')
-    inputs.mpds_query = DataFactory('parameter')(dict={
+    inputs.mpds_query = DataFactory('dict')(dict={
         "classes": "binary",
         "formulae": "MgO",
         "sgs": 225
     })   # MgO 225
-    inputs.label = 'MgO/225/PS'
-    inputs.options = DataFactory('parameter')(dict={
+    inputs.options = DataFactory('dict')(dict={
+        'label': 'MgO/225/PS',
         'resources': {
             'num_machines': 1,
             'num_mpiprocs_per_machine': 1
         }
     })
     results = run(MPDSCrystalWorkchain, **inputs)
-    print(results)
     assert 'output_parameters' in results
     assert 'frequency_parameters' in results
     assert 'elastic_parameters' in results
