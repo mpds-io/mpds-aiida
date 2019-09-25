@@ -61,13 +61,9 @@ class MPDSCrystalWorkchain(WorkChain):
         # properties wavefunction input must be set after crystal run
         options_dict = self.inputs.options.get_dict()
         self.ctx.need_phonons = options_dict.get('need_phonons', self.DEFAULT['need_phonons'])
-        self.logger.warning('Need phonons: {}'.format(self.ctx.need_phonons))
         self.ctx.need_elastic_constants = options_dict.get('need_elastic', self.DEFAULT['need_elastic_constants'])
-        self.logger.warning('Need elastic constants: {}'.format(self.ctx.need_elastic_constants))
         self.ctx.need_electronic_properties = options_dict.get('need_properties',
                                                                self.DEFAULT['need_electronic_properties'])
-        self.logger.warning('Need electronic properties: {}'.format(self.ctx.need_electronic_properties))
-
 
     def get_geometry(self):
         """Getting geometry from MPDS database"""
@@ -113,8 +109,8 @@ class MPDSCrystalWorkchain(WorkChain):
         for k in unneeded_keys:
             options_dict.pop(k)
         # label and description
-        label = options_dict.pop('label', '')
-        description = options_dict.pop('description', '')
+        label = self.inputs.metadata.get('label', '')
+        description = self.inputs.metadata.get('description', '')
         metadata = {'description': description}
         if label:
             metadata['label'] = '{}: {}'.format(label, calc_string)
@@ -140,7 +136,6 @@ class MPDSCrystalWorkchain(WorkChain):
             self.logger.warning("Skipping phonon frequency calculation")
 
     def calculate_elastic_constants(self):
-        self.logger.warning('Need elastic constants: {}'.format(self.ctx.need_elastic_constants))
         if self.ctx.need_elastic_constants:
             # run elastic calc with optimised structure
             self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
@@ -167,7 +162,7 @@ class MPDSCrystalWorkchain(WorkChain):
         # expose all outputs of optimized structure and properties calcs
         self.out_many(self.exposed_outputs(self.ctx.optimise, BaseCrystalWorkChain))
         if self.ctx.need_phonons:
-            self.out('frequency_parameters', self.ctx.phonons.outputs.output_parameters)
+            self.out('phonons_parameters', self.ctx.phonons.outputs.output_parameters)
         if self.ctx.need_elastic_constants:
             self.out('elastic_parameters', self.ctx.elastic_constants.outputs.output_parameters)
         if self.ctx.need_electronic_properties:

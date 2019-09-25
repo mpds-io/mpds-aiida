@@ -14,11 +14,11 @@ from mpds_aiida_workflows.crystal import MPDSCrystalWorkchain
 
 
 def get_formulae():
-    el1 = ['Li', 'Na', 'K', 'Rb', 'Cs']
-    el2 = ['F', 'Cl', 'Br', 'I']
-    # yield {'elements': 'Mg-O', 'classes': 'binary'}
-    for pair in product(el1, el2):
-        yield {'elements': '-'.join(pair), 'classes': 'binary'}
+    # el1 = ['Li', 'Na', 'K', 'Rb', 'Cs']
+    # el2 = ['F', 'Cl', 'Br', 'I']
+    yield {'elements': 'Mg-O', 'classes': 'binary'}
+    # for pair in product(el1, el2):
+    #     yield {'elements': '-'.join(pair), 'classes': 'binary'}
 
 
 def get_phases():
@@ -53,8 +53,8 @@ inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create(calc[
 inputs.options = DataFactory('dict')(dict=calc['options'])
 
 for phase in get_phases():
-    inputs.options['label'] = phase.pop('phase')
+    inputs.metadata = {'label': phase.pop('phase')}
     inputs.mpds_query = DataFactory('dict')(dict=phase)
     wc = submit(MPDSCrystalWorkchain, **inputs)
-    print("submitted WorkChain; PK = {}".format(wc.dbnode.pk))
+    print("submitted WorkChain; PK = {}".format(wc.pk))
 
