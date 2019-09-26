@@ -1,7 +1,7 @@
 
 import pytest
 import os
-from mpds_aiida_workflows.tests import TEST_DIR
+from mpds_aiida.tests import TEST_DIR
 
 
 @pytest.fixture
@@ -94,7 +94,7 @@ def properties_calc_parameters():
 @pytest.fixture
 def test_basis(aiida_profile):
     from aiida.common import NotExistent
-    from mpds_aiida_workflows.tests import TEST_DIR
+    from mpds_aiida.tests import TEST_DIR
     from aiida_crystal.data.basis_set import BasisSetData
     upload_basisset_family = BasisSetData.upload_basisset_family
     try:

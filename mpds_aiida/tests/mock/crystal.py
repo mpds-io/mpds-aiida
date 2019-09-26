@@ -6,7 +6,7 @@
 import os
 import shutil
 from hashlib import md5
-from mpds_aiida_workflows.tests import TEST_DIR
+from mpds_aiida.tests import TEST_DIR
 
 inputs = {'a97aea7204e8ada080e2be6c29344384': {'fort.34': '6b1423d9ecd3ba3c7395f2079555578c'},
           '226706c6adb6aaa7fd0b6338dc6cc92f': {'fort.34': '5537457e809147c474428dc2bcc32c5f'},

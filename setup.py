@@ -5,7 +5,7 @@ A setup script
 
 import json
 from setuptools import setup, find_packages
-from mpds_aiida_workflows import __version__
+from mpds_aiida import __version__
 
 if __name__ == '__main__':
     # Provide static information in setup.json
