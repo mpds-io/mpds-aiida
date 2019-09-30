@@ -61,13 +61,13 @@ def crystal_calc_parameters():
             "optimise": {
                 "type": "FULLOPTG"
             },
-            "frequency": {
+            "phonons": {
                 "ir": {
                     "type": "INTCPHF"
                 },
                 "raman": True
             },
-            "elastic": {
+            "elastic_constants": {
                 "type": "ELASTCON"
             }
         }

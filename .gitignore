@@ -62,3 +62,5 @@ docs/_build/
 target/
 
 # Project specific
+run.py
+options.yml
