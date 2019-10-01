@@ -10,6 +10,7 @@ from aiida.orm import Code
 from aiida.common.extendeddicts import AttributeDict
 from aiida_crystal.aiida_compatibility import get_data_class
 from aiida_crystal.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
+from . import GEOMETRY_LABEL, PHONON_LABEL, ELASTIC_LABEL, PROPERTIES_LABEL
 
 
 class MPDSCrystalWorkchain(WorkChain):
@@ -119,7 +120,7 @@ class MPDSCrystalWorkchain(WorkChain):
 
     def optimize_geometry(self):
         self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.optimise)
-        self.ctx.inputs.crystal.options = get_data_class('dict')(dict=self.construct_metadata('Geometry optimization'))
+        self.ctx.inputs.crystal.options = get_data_class('dict')(dict=self.construct_metadata(GEOMETRY_LABEL))
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(optimise=crystal_run)
 
@@ -129,7 +130,7 @@ class MPDSCrystalWorkchain(WorkChain):
             self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
             self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.phonons)
             self.ctx.inputs.crystal.options = get_data_class('dict')(
-                dict=self.construct_metadata('Phonon frequency'))
+                dict=self.construct_metadata(PHONON_LABEL))
             crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
             return self.to_context(phonons=crystal_run)
         else:
@@ -142,7 +143,7 @@ class MPDSCrystalWorkchain(WorkChain):
             self.ctx.inputs.crystal.parameters = get_data_class('dict')(
                 dict=self.ctx.crystal_parameters.elastic_constants)
             self.ctx.inputs.crystal.options = get_data_class('dict')(
-                dict=self.construct_metadata('Elastic constants'))
+                dict=self.construct_metadata(ELASTIC_LABEL))
             crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
             return self.to_context(elastic_constants=crystal_run)
         else:
@@ -152,7 +153,7 @@ class MPDSCrystalWorkchain(WorkChain):
         if self.ctx.need_electronic_properties:
             self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
             self.ctx.inputs.properties.options = get_data_class('dict')(
-                dict=self.construct_metadata('One-electron properties'))
+                dict=self.construct_metadata(PROPERTIES_LABEL))
             properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
             return self.to_context(properties=properties_run)
         else:
