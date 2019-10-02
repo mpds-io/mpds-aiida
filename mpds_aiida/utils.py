@@ -4,8 +4,8 @@
 from __future__ import print_function
 import os
 import shutil
-import tarfile
-import lzma
+from distutils import spawn
+import subprocess
 from aiida.orm import load_node
 from aiida.orm import QueryBuilder, WorkChainNode, CalcJobNode
 from aiida_crystal.io.d12_write import write_input
@@ -19,7 +19,7 @@ OUTPUT_FILES = {
 }
 
 FOLDER = '/tmp/calc'
-ARCHIVE_FILE = '/tmp/calc.tar.xz'
+ARCHIVE_FILE = '/tmp/calc.7z'
 
 
 def calculations_for_label(label):
@@ -30,11 +30,11 @@ def calculations_for_label(label):
     return {label: uuid for label, uuid in qb.iterall()}
 
 
-def get_files(calc_label, uuid):
+def get_files(calc_label, uuid, folder):
     calc = load_node(uuid)
     label = calc_label.split(':')[1].strip()
     repo_folder = calc.outputs.retrieved
-    dst_folder = os.path.join(FOLDER, label)
+    dst_folder = os.path.join(folder, label)
     if not os.path.isdir(dst_folder):
         os.makedirs(dst_folder)
     # input files
@@ -65,14 +65,19 @@ def get_files(calc_label, uuid):
         shutil.copy(src_name, dst_name)
 
 
-def archive(folder):
-    xz_file = lzma.LZMAFile(ARCHIVE_FILE, mode='w')
-    with tarfile.open(mode='w', fileobj=xz_file) as tar_xz_file:
-        tar_xz_file.add(folder)
-    xz_file.close()
+def archive():
+    if spawn.find_executable("7z") is None:
+        raise FileExistsError("7z archiver is not found on the system!")
+    proc = subprocess.Popen(["7z", "a", "-r", ARCHIVE_FILE, FOLDER],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    out, err = proc.communicate()
+    if err:
+        raise OSError("Error in archiving, details below\n{}".format(err))
 
 
 if __name__ == "__main__":
     calcs = calculations_for_label("MgO/225")
     for label, uuid in calcs.items():
-        get_files(label, uuid)
+        get_files(label, uuid, FOLDER)
+    archive()
