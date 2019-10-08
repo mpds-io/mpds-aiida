@@ -1,5 +1,5 @@
 {
-    "name": "mpds-aiida-workflows",
+    "name": "mpds-aiida",
     "author": "Andrey Sobolev",
     "author_email": "as@tilde.pro",
     "description": "Aiida workflows for MPDS based on CRYSTAL",
@@ -15,7 +15,7 @@
     ],
     "entry_points": {
         "aiida.workflows": [
-            "crystal.mpds = mpds_aiida_workflows.crystal:MPDSCrystalWorkChain"
+            "crystal.mpds = mpds_aiida.workflows.crystal:MPDSCrystalWorkchain"
         ]
     },
     "include_package_data": true,

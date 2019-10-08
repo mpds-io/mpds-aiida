@@ -4,13 +4,12 @@ A sample script running MPDS Aiida workflow
 import os
 import yaml
 import pandas as pd
-from itertools import product
 from mpds_client import MPDSDataRetrieval
 
 from aiida.plugins import DataFactory
 from aiida.orm import Code
 from aiida.engine import submit
-from mpds_aiida_workflows.crystal import MPDSCrystalWorkchain
+from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
 
 
 def get_formulae():

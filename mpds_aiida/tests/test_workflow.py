@@ -1,6 +1,6 @@
 
 # noinspection PyUnresolvedReferences
-from mpds_aiida_workflows.tests.fixtures import *
+from mpds_aiida.tests.fixtures import *
 
 
 def test_workchain_run(test_crystal_code,
@@ -8,7 +8,7 @@ def test_workchain_run(test_crystal_code,
                        test_properties_code,
                        properties_calc_parameters,
                        test_basis):
-    from mpds_aiida_workflows.crystal import MPDSCrystalWorkchain
+    from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
     from aiida.plugins import DataFactory
     from aiida.engine import run
     inputs = MPDSCrystalWorkchain.get_builder()
