@@ -8,7 +8,7 @@ from mpds_client import MPDSDataRetrieval
 from aiida.engine import WorkChain
 from aiida.orm import Code
 from aiida.common.extendeddicts import AttributeDict
-from aiida_crystal.aiida_compatibility import get_data_class
+from aiida_crystal.utils import get_data_class
 from aiida_crystal.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
 from . import GEOMETRY_LABEL, PHONON_LABEL, ELASTIC_LABEL, PROPERTIES_LABEL
 

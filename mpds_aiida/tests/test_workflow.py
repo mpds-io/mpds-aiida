@@ -16,7 +16,7 @@ def test_workchain_run(test_crystal_code,
     inputs.properties_code = test_properties_code
     inputs.crystal_parameters = crystal_calc_parameters
     inputs.properties_parameters = properties_calc_parameters
-    inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create('STO-3G')
+    inputs.basis_family = test_basis
     inputs.mpds_query = DataFactory('dict')(dict={
         "classes": "binary",
         "formulae": "MgO",
