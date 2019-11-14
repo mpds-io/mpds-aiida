@@ -62,8 +62,8 @@ def get_files(calc_label, uuid, folder):
     for file_name in OUTPUT_FILES.get(label, []):
         with repo_folder.open(file_name) as src:
             src_name = src.name
-        dst_name = os.path.join(dst_folder, file_name)
-        shutil.copy(src_name, dst_name)
+            dst_name = os.path.join(dst_folder, file_name)
+            shutil.copy(src_name, dst_name)
 
 
 def archive():
