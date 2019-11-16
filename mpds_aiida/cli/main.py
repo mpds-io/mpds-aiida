@@ -4,6 +4,7 @@ Main click CLI commands
 """
 
 import click
+from mpds_aiida.utils import calculations_for_label, get_files, archive_folder
 import tempfile
 
 
@@ -14,6 +15,8 @@ import tempfile
 @click.option(["-a", "--archive"],
               name="archive_file",
               help="File name of the archive")
-def cli(phase, folder, archive_file):
-    pass
-
+def archive(phase, folder, archive_file):
+    calcs = calculations_for_label(phase)
+    for label, uuid in calcs.items():
+        get_files(label, uuid, folder)
+    archive_folder(archive_file)

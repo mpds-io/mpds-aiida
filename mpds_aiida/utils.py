@@ -18,9 +18,6 @@ OUTPUT_FILES = {
     PROPERTIES_LABEL: ['fort.25']
 }
 
-FOLDER = '/tmp/calc'
-ARCHIVE_FILE = '/tmp/calc.7z'
-
 
 def calculations_for_label(label):
     qb = QueryBuilder()
@@ -65,19 +62,12 @@ def get_files(calc_label, uuid, folder):
         shutil.copy(src_name, dst_name)
 
 
-def archive():
+def archive_folder(archive_file, folder):
     if spawn.find_executable("7z") is None:
         raise FileExistsError("7z archiver is not found on the system!")
-    proc = subprocess.Popen(["7z", "a", "-r", ARCHIVE_FILE, FOLDER],
+    proc = subprocess.Popen(["7z", "a", "-r", archive_file, folder],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     out, err = proc.communicate()
     if err:
         raise OSError("Error in archiving, details below\n{}".format(err))
-
-
-if __name__ == "__main__":
-    calcs = calculations_for_label("MgO/225")
-    for label, uuid in calcs.items():
-        get_files(label, uuid, FOLDER)
-    archive()
