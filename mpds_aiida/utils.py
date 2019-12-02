@@ -3,6 +3,7 @@
 """
 from __future__ import print_function
 import os
+import sys
 import shutil
 from distutils import spawn
 import subprocess
@@ -55,14 +56,14 @@ def get_files(calc_label, uuid, folder):
     # TODO: What if the file name changes?
     with repo_folder.open('_scheduler-stderr.txt') as src:
         src_name = src.name
-        dst_name = os.path.join(dst_folder, 'crystal.out')
+        dst_name = os.path.join(dst_folder, 'OUTPUT')
         shutil.copy(src_name, dst_name)
     # output files
     for file_name in OUTPUT_FILES.get(label, []):
         with repo_folder.open(file_name) as src:
             src_name = src.name
-        dst_name = os.path.join(dst_folder, file_name)
-        shutil.copy(src_name, dst_name)
+            dst_name = os.path.join(dst_folder, file_name)
+            shutil.copy(src_name, dst_name)
 
 
 def archive():
@@ -77,7 +78,10 @@ def archive():
 
 
 if __name__ == "__main__":
-    calcs = calculations_for_label("MgO/225")
+    if len(sys.argv) != 2:
+        print("Usage: utils.py label")
+        sys.exit()
+    calcs = calculations_for_label(sys.argv[1])
     for label, uuid in calcs.items():
         get_files(label, uuid, FOLDER)
     archive()
