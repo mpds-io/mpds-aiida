@@ -5,7 +5,7 @@ import os
 import numpy as np
 from mpds_client import MPDSDataRetrieval
 
-from aiida.engine import WorkChain
+from aiida.engine import WorkChain, if_
 from aiida.orm import Code
 from aiida.common.extendeddicts import AttributeDict
 from aiida_crystal.utils import get_data_class
@@ -25,14 +25,14 @@ class MPDSCrystalWorkchain(WorkChain):
         super(MPDSCrystalWorkchain, cls).define(spec)
         # define code inputs
         spec.input('crystal_code', valid_type=Code, required=True)
-        spec.input('properties_code', valid_type=Code, required=True)
+        spec.input('properties_code', valid_type=Code)
         # MPDS phase id
         spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
         # Basis
         spec.expose_inputs(BaseCrystalWorkChain, include=['basis_family'])
         # Parameters (include OPTGEOM, FREQCALC and ELASTCON)
         spec.input('crystal_parameters', valid_type=get_data_class('dict'), required=True)
-        spec.input('properties_parameters', valid_type=get_data_class('dict'), required=True)
+        spec.input('properties_parameters', valid_type=get_data_class('dict'))
         spec.input('options', valid_type=get_data_class('dict'), required=True, help="Calculation options")
         # define workchain routine
         spec.outline(cls.init_inputs,
@@ -40,13 +40,17 @@ class MPDSCrystalWorkchain(WorkChain):
                      cls.optimize_geometry,
                      cls.calculate_phonons,
                      cls.calculate_elastic_constants,
-                     cls.run_properties_calc,
+                     if_(cls.needs_properties_run)(
+                         cls.run_properties_calc),
                      cls.retrieve_results)
         # define outputs
         spec.output('phonons_parameters', valid_type=get_data_class('dict'), required=False)
         spec.output('elastic_parameters', valid_type=get_data_class('dict'), required=False)
         spec.expose_outputs(BaseCrystalWorkChain)
         spec.expose_outputs(BasePropertiesWorkChain)
+
+    def needs_properties_run(self):
+        return self.inputs.options.get_dict().get('need_properties', self.DEFAULT['need_electronic_properties'])
 
     def init_inputs(self):
         self.ctx.inputs = AttributeDict()
@@ -57,8 +61,9 @@ class MPDSCrystalWorkchain(WorkChain):
         self.ctx.inputs.crystal.basis_family = self.inputs.basis_family
         self.ctx.inputs.crystal.structure = self.get_geometry()
         # set the properties workchain   inputs
-        self.ctx.inputs.properties.code = self.inputs.properties_code
-        self.ctx.inputs.properties.parameters = self.inputs.properties_parameters
+        if self.needs_properties_run():
+            self.ctx.inputs.properties.code = self.inputs.properties_code
+            self.ctx.inputs.properties.parameters = self.inputs.properties_parameters
         # properties wavefunction input must be set after crystal run
         options_dict = self.inputs.options.get_dict()
         self.ctx.need_phonons = options_dict.get('need_phonons', self.DEFAULT['need_phonons'])
