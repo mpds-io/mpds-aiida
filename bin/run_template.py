@@ -15,7 +15,7 @@ from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
 def get_formulae():
     # el1 = ['Li', 'Na', 'K', 'Rb', 'Cs']
     # el2 = ['F', 'Cl', 'Br', 'I']
-    yield {'elements': 'Mg-O', 'classes': 'binary'}
+    yield {'elements': 'Mg-O', 'classes': 'binary, non-disordered'}
     # for pair in product(el1, el2):
     #     yield {'elements': '-'.join(pair), 'classes': 'binary'}
 
@@ -24,17 +24,21 @@ def get_phases():
     key = os.getenv('MPDS_KEY', None)
     if key is None:
         raise EnvironmentError('Environment variable MPDS_KEY not set, aborting')
+    
     cols = ['phase', 'chemical_formula', 'sg_n']
     client = MPDSDataRetrieval(api_key=key)
+    
     for formula in get_formulae():
-
         formula.update({'props': 'atomic structure'})
         data = client.get_data(formula, fields={'S': cols})
         data_df = pd.DataFrame(data=data, columns=cols).dropna(axis=0, how="all", subset=["phase"])
+        
         for _, phase in data_df.drop_duplicates().iterrows():
-            yield {'phase': phase['phase'],
+            yield {
+                   'phase': phase['phase'],
                    'formulae': phase['chemical_formula'],
-                   'sgs': int(phase['sg_n'])}
+                   'sgs': int(phase['sg_n'])
+                  }
 
 
 with open('options_template.yml') as f:
