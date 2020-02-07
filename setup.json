@@ -10,6 +10,7 @@
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Scientific/Engineering :: Physics"
     ],
@@ -22,7 +23,12 @@
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida-core>=1.0.0b5",
+        "aiida-core>=1.0.1",
         "mpds_client"
-    ]
+    ],
+    "package_data": {
+        "mpds_aiida": [
+            "calc_templates/*"
+        ]
+    }
 }

@@ -1,7 +1,6 @@
-#  Copyright (c)  Andrey Sobolev, 2019. Distributed under MIT license, see LICENSE file.
-""" Several utilities concerning getting input and output files from the repository
-"""
-from __future__ import print_function
+# Copyright (c) Andrey Sobolev and Evgeny Blokhin, 2016-2019
+# Distributed under MIT license, see LICENSE file.
+
 import os
 import sys
 import shutil

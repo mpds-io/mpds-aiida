@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-"""
-A setup script
-"""
 
 import json
 from setuptools import setup, find_packages
