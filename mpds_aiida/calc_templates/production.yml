@@ -40,7 +40,7 @@ parameters:
 
   properties:
     band:
-      shrink: 6
+      shrink: 8
       k_points: 30
     newk:
       k_points: [6, 6]
