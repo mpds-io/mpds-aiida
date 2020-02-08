@@ -1,0 +1,48 @@
+cluster: yascheduler
+
+codes:
+  - Pcrystal
+
+options:
+  need_phonons: False
+  need_elastic_constants: True
+  need_properties: False
+  resources:
+    num_machines: 42
+    num_mpiprocs_per_machine: 42
+
+basis_family: TZVP_REV2
+
+parameters:
+  crystal:
+    scf:
+      k_points: [8, 16]
+      dft:
+        xc: PBE0
+        grid: XLGRID
+        numerical:
+          TOLLDENS: 8
+          TOLLGRID: 16
+      numerical:
+        TOLDEE: 9
+      post_scf: ['PPAN']
+    geometry:
+      optimise:
+        type: ITATOCEL
+        convergence:
+          TOLDEE: 9
+      phonons:
+        ir:
+          type: INTCPHF
+        raman: true
+      elastic_constants:
+        type: ELAPIEZO
+
+  properties:
+    band:
+      shrink: 6
+      k_points: 30
+    newk:
+      k_points: [6, 6]
+    dos:
+      n_e: 1000
