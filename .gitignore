@@ -65,3 +65,9 @@ target/
 # Project specific
 run.py
 options.yml
+
+# venv
+bin/ase*
+bin/rst*
+bin/python*
+bin/circus*
