@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-# NB. pip install git+https://github.com/tilde-lab/yascheduler
-
 from itertools import product
 from configparser import ConfigParser
 
@@ -12,7 +10,7 @@ from yascheduler import CONFIG_FILE
 from yascheduler.scheduler import Yascheduler
 
 from mpds_client import MPDSDataRetrieval
-from mpds_aiida.common import get_template, get_basis_sets, get_structures, get_input
+from mpds_aiida.common import get_template, get_basis_sets, get_mpds_structures, get_input
 
 
 ela = ['Li', 'Na', 'K', 'Rb', 'Be', 'Mg', 'Ca', 'Sr']
@@ -29,7 +27,7 @@ bs_repo = get_basis_sets(calc_setup['basis_family'])
 
 for elem_pair in product(ela, elb):
     print(elem_pair)
-    structures = get_structures(client, elem_pair, more_query_args=dict(lattices='cubic'))
+    structures = get_mpds_structures(client, elem_pair, more_query_args=dict(lattices='cubic'))
     structures_by_sgn = {}
 
     for s in structures:

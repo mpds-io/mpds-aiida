@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-# NB. pip install git+https://github.com/tilde-lab/yascheduler git+https://github.com/mpds-io/mpds-ml-labs
-
 import os
 import sys
 from configparser import ConfigParser

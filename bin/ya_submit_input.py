@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-# NB. pip install git+https://github.com/tilde-lab/yascheduler
-
 import os
 import sys
 from configparser import ConfigParser
