@@ -5,7 +5,7 @@ codes:
 
 options:
   need_phonons: False
-  need_elastic_constants: True
+  need_elastic_constants: False
   need_properties: False
   resources:
     num_machines: 42

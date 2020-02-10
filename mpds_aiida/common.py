@@ -56,10 +56,12 @@ def get_input(calc_params_crystal, elements, bs_repo, label):
 
 supported_arities = {1: 'unary', 2: 'binary', 3: 'ternary', 4: 'quaternary', 5: 'quinary'}
 
-def get_structures(mpds_api, elements, more_query_args=None):
+def get_mpds_structures(mpds_api, elements, more_query_args=None):
     """
     Given some arbitrary chemical elements,
     get their possible crystalline structures
+
+    Returns: list (NB dups)
     """
     assert sorted(list(set(elements))) == sorted(elements) and \
     len(elements) <= len(supported_arities)
@@ -78,14 +80,14 @@ def get_structures(mpds_api, elements, more_query_args=None):
             query,
             fields={'S': [
                 'phase',
-                'occs_noneq', # non-disordered phases may have != 1
+                'occs_noneq', # non-disordered phases may still have != 1
                 'cell_abc',
                 'sg_n',
                 'basis_noneq',
                 'els_noneq'
             ]}
         ):
-            if any([occ != 1 for occ in item[1]]):
+            if item and any([occ != 1 for occ in item[1]]):
                 continue
 
             ase_obj = mpds_api.compile_crystal(item, flavor='ase')
@@ -102,3 +104,49 @@ def get_structures(mpds_api, elements, more_query_args=None):
         else: raise
 
     return structures
+
+
+def get_mpds_phases(mpds_api, elements, more_query_args=None):
+    """
+    Given some arbitrary chemical elements,
+    get their possible distinct phases,
+    having at least one supported crystalline structure known
+
+    Returns: set
+    """
+    assert sorted(list(set(elements))) == sorted(elements) and \
+    len(elements) <= len(supported_arities)
+
+    phases = set()
+    query = {
+        "props": "atomic structure",
+        "elements": '-'.join(elements),
+        "classes": supported_arities[len(elements)] + ", non-disordered"
+    }
+    if more_query_args and type(more_query_args) == dict:
+        query.update(more_query_args)
+
+    try:
+        for item in mpds_api.get_data(
+            query,
+            fields={'S': [
+                'phase',
+                'occs_noneq', # non-disordered phases may still have != 1
+                'els_noneq'
+            ]}
+        ):
+            if not item or not item[-1]:
+                continue
+
+            if any([occ != 1 for occ in item[1]]):
+                continue
+
+            phases.add(item[0])
+
+    except APIError as ex:
+        if ex.code == 204:
+            print("No results!")
+            return []
+        else: raise
+
+    return phases
