@@ -4,9 +4,9 @@ codes:
   - Pcrystal
 
 options:
-  need_phonons: False
-  need_elastic_constants: False
-  need_properties: False
+  need_phonons: false
+  need_elastic_constants: false
+  need_properties: false
   resources:
     num_machines: 42
     num_mpiprocs_per_machine: 42
@@ -27,6 +27,9 @@ parameters:
         type: CELLONLY
         convergence:
           TOLDEE: 8
+      phonons: true
+      elastic_constants:
+        type: ELASTCON
 
   properties:
     band:
