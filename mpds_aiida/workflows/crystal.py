@@ -76,7 +76,7 @@ class MPDSCrystalWorkchain(WorkChain):
         # properties wavefunction input must be set after crystal run
         options_dict = self.inputs.options.get_dict()
         self.ctx.need_phonons = options_dict.get('need_phonons', self.DEFAULT['need_phonons'])
-        self.ctx.need_elastic_constants = options_dict.get('need_elastic', self.DEFAULT['need_elastic_constants'])
+        self.ctx.need_elastic_constants = options_dict.get('need_elastic_constants', self.DEFAULT['need_elastic_constants'])
         self.ctx.need_electronic_properties = options_dict.get('need_properties',
                                                                self.DEFAULT['need_electronic_properties'])
 
