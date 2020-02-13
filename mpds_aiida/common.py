@@ -40,8 +40,14 @@ def get_template(template='minimal.yml'):
     """
     Templates present the permanent calc setup
     """
-    with open(os.path.join(CALC_TPL_DIR, template)) as f:
-        calc = yaml.load(f.read())
+    template_loc = os.path.join(CALC_TPL_DIR, template)
+    if not os.path.exists(template_loc):
+        template_loc = template
+
+    assert os.path.exists(template_loc)
+
+    with open(template_loc) as f:
+        calc = yaml.load(f.read(), Loader=yaml.SafeLoader)
     assert 'parameters' in calc and 'crystal' in calc['parameters'] and 'basis_family' in calc
     return calc
 
