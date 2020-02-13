@@ -7,6 +7,7 @@ options:
   need_phonons: false
   need_elastic_constants: true
   need_properties: false
+  try_oxi_if_fails: true
   resources:
     num_machines: 42
     num_mpiprocs_per_machine: 42
