@@ -2,8 +2,11 @@
 The workflow for AiiDA combining CRYSTAL and MPDS
 """
 import os
+import time
+import random
+
 import numpy as np
-from mpds_client import MPDSDataRetrieval
+from mpds_client import MPDSDataRetrieval, APIError
 
 from aiida.engine import WorkChain, if_
 from aiida.orm import Code
@@ -89,15 +92,23 @@ class MPDSCrystalWorkchain(WorkChain):
 
         # insert props: atomic structure to query. Might check if it's already set to smth
         query_dict['props'] = 'atomic structure'
-        answer = client.get_data(
-            query_dict,
-            fields={'S': [
-                'cell_abc',
-                'sg_n',
-                'basis_noneq',
-                'els_noneq'
-            ]}
-        )
+        try:
+            answer = client.get_data(
+                query_dict,
+                fields={'S': [
+                    'cell_abc',
+                    'sg_n',
+                    'basis_noneq',
+                    'els_noneq'
+                ]}
+            )
+        except APIError as ex:
+            if ex.code == 429:
+                self.logger.warning("Too many parallel MPDS requests, chilling")
+                time.sleep(random.choice([2 * 2**m for m in range(5)]))
+                return self.get_geometry()
+            else: raise
+
         structs = [client.compile_crystal(line, flavor='ase') for line in answer]
         minimal_struct = min([len(s) for s in structs])
 
@@ -124,8 +135,6 @@ class MPDSCrystalWorkchain(WorkChain):
 
     def construct_metadata(self, calc_string):
         options_dict = self.inputs.options.get_dict()
-
-        # remove unneeded
         unneeded_keys = [k for k in options_dict if "need_" in k]
         for k in unneeded_keys:
             options_dict.pop(k)
