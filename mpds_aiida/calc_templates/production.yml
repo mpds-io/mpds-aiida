@@ -29,7 +29,6 @@ parameters:
       post_scf: ['PPAN']
     geometry:
       optimise:
-        type: ITATOCEL
         convergence:
           TOLDEE: 9
       phonons:
