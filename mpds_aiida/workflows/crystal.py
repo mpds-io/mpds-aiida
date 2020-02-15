@@ -87,7 +87,7 @@ class MPDSCrystalWorkchain(WorkChain):
         """ Getting geometry from MPDS database
         """
         key = os.getenv('MPDS_KEY')
-        client = MPDSDataRetrieval(api_key=key)
+        client = MPDSDataRetrieval(api_key=key, verbose=False)
         query_dict = self.inputs.mpds_query.get_dict()
 
         # insert props: atomic structure to query. Might check if it's already set to smth
@@ -110,6 +110,9 @@ class MPDSCrystalWorkchain(WorkChain):
             else: raise
 
         structs = [client.compile_crystal(line, flavor='ase') for line in answer]
+        structs = list(filter(None, structs))
+        if not structs:
+            raise APIError('No crystal structures returned')
         minimal_struct = min([len(s) for s in structs])
 
         # get structures with minimal number of atoms and find the one with median cell vectors
