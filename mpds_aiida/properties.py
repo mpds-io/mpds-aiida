@@ -10,10 +10,14 @@ from configparser import ConfigParser
 import string
 from datetime import datetime
 
+import numpy as np
+from ase.units import Hartree
 from yascheduler import CONFIG_FILE
+from aiida.plugins import DataFactory
 from aiida_crystal.io.f9 import Fort9
 from aiida_crystal.io.d3 import D3
-from aiida_crystal.utils.kpoints import get_shrink_kpoints_path
+from aiida_crystal.io.f25 import Fort25
+from aiida_crystal.utils.kpoints import construct_kpoints_path, get_explicit_kpoints_path, get_shrink_kpoints_path
 
 
 EXEC_PATH = "/usr/bin/Pproperties"
@@ -21,6 +25,33 @@ exec_cmd = "/usr/bin/mpirun -np 1 --allow-run-as-root -wd %s %s > %s 2>&1"
 
 config = ConfigParser()
 config.read(CONFIG_FILE)
+
+
+def is_conductor(band_stripes):
+    for s in band_stripes:
+        top, bottom = max(s), min(s)
+        if bottom < 0 and top > 0: return True
+        elif bottom > 0: break
+    return False
+
+
+def get_bandgap(band_stripes, x_axis):
+    # TODO if indirect gap found, find also direct one
+    for n in range(1, len(band_stripes)):
+        top, bottom = max(band_stripes[n]), min(band_stripes[n])
+        if bottom > 0:
+            lvb = max(band_stripes[n-1])
+            if lvb < bottom:
+                homo_k = x_axis[ band_stripes[n-1].index(lvb) ]
+                lumo_k = x_axis[ band_stripes[n].index(bottom)]
+                gap = bottom - lvb
+                if gap > 50: # eV
+                    raise RuntimeError("Unphysical band gap occured!")
+                return gap, homo_k == lumo_k
+            else:
+                return 0.0, None
+
+    raise RuntimeError("Unexpected data in band structure: no bands above zero found!")
 
 
 def run_properties_direct(wf_path, input_dict):
@@ -65,15 +96,57 @@ def run_properties_direct(wf_path, input_dict):
         exec_cmd % (work_folder, EXEC_PATH, os.path.join(work_folder, 'OUTPUT')),
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
     )
-    _, err = p.communicate()
+    p.communicate()
     print("Done in %1.2f sc" % (time.time() - start_time))
 
     if p.returncode != 0:
-        return None, 'PROPERTIES failed: %s' % err
+        return None, 'PROPERTIES failed, see %s' % work_folder
 
     if not os.path.exists(os.path.join(work_folder, 'BAND.DAT')) \
         or not os.path.exists(os.path.join(work_folder, 'DOSS.DAT')) \
         or not os.path.exists(os.path.join(work_folder, 'fort.25')):
         return None, 'No PROPERTIES outputs'
 
-    return work_folder, None
+    edata = Fort25(os.path.join(work_folder, 'fort.25')).parse()
+
+    assert sum(edata['DOSS']['e']) == 0 # all zeros, FIXME?
+    print('>N DOSS: %s' % len(edata['DOSS']['dos'][0]))
+
+    path = edata['BAND']['path']
+    k_number = edata['BAND']['n_k']
+    cell = wf.get_cell(scale=True) # for path construction we're getting geometry from fort.9
+    path_description = construct_kpoints_path(cell, path, shrink, k_number)
+    # find k-points along the path
+    k_points = get_explicit_kpoints_path(structure, path_description)['explicit_kpoints']
+
+    # pass through the internal AiiDA repr, FIXME?
+    bands_data = DataFactory('array.bands')()
+    bands_data.set_kpointsdata(k_points)
+    bands_data.set_bands(edata['BAND']['bands'])
+
+    edata['BAND']['bands'] = bands_data.get_bands()
+    k_points = bands_data.get_kpoints().tolist()
+    print('>N KPOINTS: %s' % len(k_points))
+    print('>N BANDS: %s' % len(edata['BAND']['bands'][0]))
+
+    edata['BAND']['bands'] -= edata['DOSS']['e_fermi']
+    edata['BAND']['bands'] *= Hartree
+    e_min, e_max = np.amin(edata['BAND']['bands']), np.amax(edata['BAND']['bands'])
+    dos_energies = np.linspace(e_min, e_max, num=len(edata['DOSS']['dos'][0]))
+    stripes = edata['BAND']['bands'].transpose().copy().tolist()
+
+    if is_conductor(stripes):
+        gap, is_direct = None, None
+    else:
+        gap, is_direct = get_bandgap(stripes, k_points)
+
+    return {
+        'gap': gap,
+        'is_direct': is_direct,
+        'dos': edata['DOSS']['dos'].tolist(),
+        'levels': dos_energies,
+        'k_points': k_points,
+        'stripes': stripes,
+        'work_folder': work_folder,
+        'units': 'eV'
+    }, None
