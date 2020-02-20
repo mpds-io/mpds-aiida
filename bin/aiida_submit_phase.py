@@ -9,9 +9,14 @@ from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
 from mpds_aiida.common import get_template
 
 load_profile()
-calc_setup = get_template()
+calc_setup = get_template('production.yml')
 phase = sys.argv[1].split("/")
-formula, sgs, pearson = phase if len(phase) == 3 else phase[0], phase[1], None
+
+if len(phase) == 3:
+    formula, sgs, pearson = phase
+else:
+    formula, sgs, pearson = phase[0], phase[1], None
+
 sgs = int(sgs)
 calc_setup['parameters']['crystal']['title'] = "/".join(phase)
 

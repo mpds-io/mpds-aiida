@@ -71,7 +71,10 @@ def run_properties_direct(wf_path, input_dict):
     ]))
     os.makedirs(work_folder, exist_ok=False)
     shutil.copy(wf_path, work_folder)
-    wf = Fort9(os.path.join(work_folder, 'fort.9'))
+    try:
+        wf = Fort9(os.path.join(work_folder, 'fort.9'))
+    except TypeError:
+        return None, 'CANNOT READ %s' % os.path.join(work_folder, 'fort.9')
 
     # automatic generation of k-point path
     structure = wf.get_structure()

@@ -71,3 +71,6 @@ bin/ase*
 bin/rst*
 bin/python*
 bin/circus*
+bin/activ*
+bin/easy*
+bin/f2py*
