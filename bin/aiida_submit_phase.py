@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys
+import sys
 from aiida import load_profile
 from aiida.plugins import DataFactory
 from aiida.orm import Code

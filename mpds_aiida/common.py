@@ -160,8 +160,8 @@ def get_mpds_phases(mpds_api, elements, more_query_args=None):
 
 
 def get_aiida_cnf():
-    cnf_path = '~/.aiida/config.json'
+    cnf_path = os.path.expanduser('~/.aiida/config.json')
     assert os.path.exists(cnf_path)
     with open(cnf_path) as f:
         contents = json.loads(f.read())
-    return contents['profiles'][contents['profiles']['default_profile']]
+    return contents['profiles'][contents['default_profile']]
