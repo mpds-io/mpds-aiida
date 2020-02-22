@@ -1,5 +1,6 @@
 
 import os
+import json
 from collections import namedtuple
 
 import yaml
@@ -156,3 +157,11 @@ def get_mpds_phases(mpds_api, elements, more_query_args=None):
         else: raise
 
     return phases
+
+
+def get_aiida_cnf():
+    cnf_path = '~/.aiida/config.json'
+    assert os.path.exists(cnf_path)
+    with open(cnf_path) as f:
+        contents = json.loads(f.read())
+    return contents['profiles'][contents['profiles']['default_profile']]

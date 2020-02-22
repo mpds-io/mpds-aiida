@@ -36,7 +36,7 @@ parameters:
           type: INTCPHF
         raman: true
       elastic_constants:
-        type: ELAPIEZO
+        type: ELASTCON
 
   properties:
     band:
