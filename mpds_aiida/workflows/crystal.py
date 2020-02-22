@@ -33,6 +33,8 @@ class MPDSCrystalWorkchain(WorkChain):
 
         # MPDS phase id
         spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
+        # Add direct structures submitting support: FIXME
+        spec.input('struct_in', valid_type=get_data_class('structure'))
 
         # Basis set
         spec.expose_inputs(BaseCrystalWorkChain, include=['basis_family'])
@@ -89,6 +91,11 @@ class MPDSCrystalWorkchain(WorkChain):
         key = os.getenv('MPDS_KEY')
         client = MPDSDataRetrieval(api_key=key, verbose=False)
         query_dict = self.inputs.mpds_query.get_dict()
+
+        # Add direct structures submitting support: FIXME
+        assert query_dict or self.inputs.struct_in
+        if not query_dict:
+            return self.inputs.struct_in
 
         # insert props: atomic structure to query. Might check if it's already set to smth
         query_dict['props'] = 'atomic structure'
