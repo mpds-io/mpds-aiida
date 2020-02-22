@@ -19,6 +19,7 @@ structure = open(sys.argv[1]).read()
 assert detect_format(structure) == 'cif'
 ase_obj, error = cif_to_ase(structure)
 assert not error, error
+assert 'disordered' not in ase_obj.info
 
 try: symprec = float(sys.argv[2])
 except: symprec = 3E-02 # NB needs tuning
