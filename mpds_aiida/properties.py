@@ -18,10 +18,14 @@ from aiida_crystal.io.f9 import Fort9
 from aiida_crystal.io.d3 import D3
 from aiida_crystal.io.f25 import Fort25
 from aiida_crystal.utils.kpoints import construct_kpoints_path, get_explicit_kpoints_path, get_shrink_kpoints_path
+import psutil
 
 
 EXEC_PATH = "/usr/bin/Pproperties"
+#EXEC_PATH = "/root/bin/properties"
+EXEC_TIMEOUT = 300 # NB five minutes
 exec_cmd = "/usr/bin/mpirun -np 1 --allow-run-as-root -wd %s %s > %s 2>&1"
+#exec_cmd = "cd %s && %s < INPUT > %s 2>&1"
 
 config = ConfigParser()
 config.read(CONFIG_FILE)
@@ -40,9 +44,9 @@ def get_bandgap(band_stripes, x_axis):
     for n in range(1, len(band_stripes)):
         top, bottom = max(band_stripes[n]), min(band_stripes[n])
         if bottom > 0:
-            lvb = max(band_stripes[n-1])
+            lvb = max(band_stripes[n - 1])
             if lvb < bottom:
-                homo_k = x_axis[ band_stripes[n-1].index(lvb) ]
+                homo_k = x_axis[ band_stripes[n - 1].index(lvb) ]
                 lumo_k = x_axis[ band_stripes[n].index(bottom)]
                 gap = bottom - lvb
                 if gap > 50: # eV
@@ -52,6 +56,13 @@ def get_bandgap(band_stripes, x_axis):
                 return 0.0, None
 
     raise RuntimeError("Unexpected data in band structure: no bands above zero found!")
+
+
+def kill(proc_pid):
+    process = psutil.Process(proc_pid)
+    for proc in process.children(recursive=True):
+        proc.kill()
+    process.kill()
 
 
 def run_properties_direct(wf_path, input_dict):
@@ -71,10 +82,7 @@ def run_properties_direct(wf_path, input_dict):
     ]))
     os.makedirs(work_folder, exist_ok=False)
     shutil.copy(wf_path, work_folder)
-    try:
-        wf = Fort9(os.path.join(work_folder, 'fort.9'))
-    except TypeError:
-        return None, 'CANNOT READ %s' % os.path.join(work_folder, 'fort.9')
+    wf = Fort9(os.path.join(work_folder, 'fort.9'))
 
     # automatic generation of k-point path
     structure = wf.get_structure()
@@ -99,7 +107,11 @@ def run_properties_direct(wf_path, input_dict):
         exec_cmd % (work_folder, EXEC_PATH, os.path.join(work_folder, 'OUTPUT')),
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
     )
-    p.communicate()
+    try:
+        p.wait(timeout=EXEC_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        kill(p.pid)
+        print("Killed as too time-consuming")
     print("Done in %1.2f sc" % (time.time() - start_time))
 
     if p.returncode != 0:
