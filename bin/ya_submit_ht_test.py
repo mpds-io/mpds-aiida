@@ -4,7 +4,7 @@ from itertools import product
 from configparser import ConfigParser
 
 import numpy as np
-from aiida_crystal.io.f34 import Fort34
+from aiida_crystal_dft.io.f34 import Fort34
 
 from yascheduler import CONFIG_FILE
 from yascheduler.scheduler import Yascheduler

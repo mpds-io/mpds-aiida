@@ -13,7 +13,7 @@ def test_computer(aiida_profile, new_workdir):
     except NotExistent:
         computer = Computer(
                 name='localhost',
-                description='localhost computer set up by aiida_crystal tests',
+                description='localhost computer set up by aiida_crystal_dft tests',
                 hostname='localhost',
                 workdir=new_workdir,
                 transport_type='local',
@@ -93,6 +93,6 @@ def properties_calc_parameters():
 
 @pytest.fixture
 def test_basis(aiida_profile):
-    from aiida_crystal.data.basis_family import CrystalBasisFamilyData
+    from aiida_crystal_dft.data.basis_family import CrystalBasisFamilyData
     basis_family, _ = CrystalBasisFamilyData.get_or_create('STO-3G')
     return basis_family

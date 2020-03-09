@@ -4,7 +4,7 @@ import os
 import sys
 from configparser import ConfigParser
 
-from aiida_crystal.io.f34 import Fort34
+from aiida_crystal_dft.io.f34 import Fort34
 from mpds_ml_labs.struct_utils import detect_format, refine
 from mpds_ml_labs.cif_utils import cif_to_ase
 

@@ -15,12 +15,12 @@ using the MPDS data platform, AiiDA workflows, and CRYSTAL simulation engine.
 
 ## Installation
 
-The code in this repo requires the [aiida-crystal](https://github.com/tilde-lab/aiida-crystal), [yascheduler](https://github.com/tilde-lab/yascheduler), and [mpds-ml-labs](https://github.com/mpds-io/mpds-ml-labs) Python packages installed. In their turn, they depend on the [aiida](https://github.com/aiidateam/aiida-core), [mpds_client](https://github.com/mpds-io/mpds_client), and other Python packages.
+The code in this repo requires the [aiida-crystal-dft](https://github.com/tilde-lab/aiida-crystal-dft), [yascheduler](https://github.com/tilde-lab/yascheduler), and [mpds-ml-labs](https://github.com/mpds-io/mpds-ml-labs) Python packages installed. In their turn, they depend on the [aiida](https://github.com/aiidateam/aiida-core), [mpds_client](https://github.com/mpds-io/mpds_client), and other Python packages.
 
 Thus, installation is as follows:
 
 ```shell
->> pip install git+https://github.com/tilde-lab/aiida-crystal
+>> pip install git+https://github.com/tilde-lab/aiida-crystal-dft
 >> pip install git+https://github.com/tilde-lab/yascheduler
 >> pip install git+https://github.com/mpds-io/mpds-ml-labs
 >> git clone https://github.com/mpds-io/mpds-aiida

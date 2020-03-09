@@ -8,7 +8,7 @@ from distutils import spawn
 import subprocess
 from aiida.orm import load_node
 from aiida.orm import QueryBuilder, WorkChainNode, CalcJobNode
-from aiida_crystal.io.d12_write import write_input
+from aiida_crystal_dft.io.d12_write import write_input
 from mpds_aiida.workflows import GEOMETRY_LABEL, PROPERTIES_LABEL
 from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
 
@@ -47,7 +47,7 @@ def get_files(calc_label, uuid, folder):
             print(write_input(input_dict, basis_family), file=f)
     else:
         # properties run
-        from aiida_crystal.io.d3 import D3
+        from aiida_crystal_dft.io.d3 import D3
         d3 = D3(parameters=input_dict)
         with open(os.path.join(dst_folder, 'INPUT'), 'w') as f:
             d3.write(f)

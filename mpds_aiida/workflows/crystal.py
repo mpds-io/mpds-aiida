@@ -11,8 +11,8 @@ from mpds_client import MPDSDataRetrieval, APIError
 from aiida.engine import WorkChain, if_
 from aiida.orm import Code
 from aiida.common.extendeddicts import AttributeDict
-from aiida_crystal.utils import get_data_class
-from aiida_crystal.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
+from aiida_crystal_dft.utils import get_data_class
+from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
 from . import GEOMETRY_LABEL, PHONON_LABEL, ELASTIC_LABEL, PROPERTIES_LABEL
 
 

@@ -6,8 +6,8 @@ from collections import namedtuple
 import yaml
 from ase.data import chemical_symbols
 
-from aiida_crystal.io.d12_write import write_input
-from aiida_crystal.io.basis import BasisFile # NB only used to determine ecp
+from aiida_crystal_dft.io.d12_write import write_input
+from aiida_crystal_dft.io.basis import BasisFile # NB only used to determine ecp
 from mpds_client import APIError
 
 from mpds_aiida import CALC_TPL_DIR

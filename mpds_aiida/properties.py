@@ -14,10 +14,10 @@ import numpy as np
 from ase.units import Hartree
 from yascheduler import CONFIG_FILE
 from aiida.plugins import DataFactory
-from aiida_crystal.io.f9 import Fort9
-from aiida_crystal.io.d3 import D3
-from aiida_crystal.io.f25 import Fort25
-from aiida_crystal.utils.kpoints import construct_kpoints_path, get_explicit_kpoints_path, get_shrink_kpoints_path
+from aiida_crystal_dft.io.f9 import Fort9
+from aiida_crystal_dft.io.d3 import D3
+from aiida_crystal_dft.io.f25 import Fort25
+from aiida_crystal_dft.utils.kpoints import construct_kpoints_path, get_explicit_kpoints_path, get_shrink_kpoints_path
 import psutil
 
 
