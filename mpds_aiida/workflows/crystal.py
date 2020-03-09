@@ -29,7 +29,7 @@ class MPDSCrystalWorkchain(WorkChain):
 
         # define code inputs
         spec.input('crystal_code', valid_type=Code, required=True)
-        spec.input('properties_code', valid_type=Code)
+        spec.input('properties_code', valid_type=Code, required=False)
 
         # MPDS phase id
         spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
@@ -41,14 +41,15 @@ class MPDSCrystalWorkchain(WorkChain):
 
         # Parameters (include OPTGEOM, FREQCALC and ELASTCON)
         spec.input('crystal_parameters', valid_type=get_data_class('dict'), required=True)
-        spec.input('properties_parameters', valid_type=get_data_class('dict'))
+        spec.input('properties_parameters', valid_type=get_data_class('dict'), required=False)
         spec.input('options', valid_type=get_data_class('dict'), required=True, help="Calculation options")
 
         # define workchain routine
         spec.outline(cls.init_inputs,
                      cls.validate_inputs,
                      cls.optimize_geometry,
-                     cls.calculate_phonons,
+                     if_(cls.needs_phonons)(
+                         cls.calculate_phonons),
                      cls.calculate_elastic_constants,
                      if_(cls.needs_properties_run)(
                          cls.run_properties_calc),
@@ -60,8 +61,23 @@ class MPDSCrystalWorkchain(WorkChain):
         spec.expose_outputs(BaseCrystalWorkChain)
         spec.expose_outputs(BasePropertiesWorkChain)
 
+    def needs_phonons(self):
+        result = self.inputs.options.get_dict().get('need_phonons', self.DEFAULT['need_phonons'])
+        self.ctx.need_phonons = result
+        if not result:
+            self.logger.warning("Skipping phonon frequency calculation")
+        return result
+
     def needs_properties_run(self):
-        return self.inputs.options.get_dict().get('need_properties', self.DEFAULT['need_electronic_properties'])
+        if "properties_code" not in self.inputs:
+            self.logger.warning("No properties code given as input, hence skipping electronic properties calculation")
+            self.ctx.need_electronic_properties = False
+            return False
+        result = self.inputs.options.get_dict().get('need_properties', self.DEFAULT['need_electronic_properties'])
+        self.ctx.need_electronic_properties = result
+        if not result:
+            self.logger.warning("Skipping electronic properties calculation")
+        return result
 
     def init_inputs(self):
         self.ctx.inputs = AttributeDict()
@@ -73,17 +89,14 @@ class MPDSCrystalWorkchain(WorkChain):
         self.ctx.inputs.crystal.basis_family = self.inputs.basis_family
         self.ctx.inputs.crystal.structure = self.get_geometry()
 
-        # set the properties workchain   inputs
-        if self.needs_properties_run():
-            self.ctx.inputs.properties.code = self.inputs.properties_code
-            self.ctx.inputs.properties.parameters = self.inputs.properties_parameters
+        # set the properties workchain inputs
+        self.ctx.inputs.properties.code = self.inputs.get('properties_code', None)
+        self.ctx.inputs.properties.parameters = self.inputs.get('properties_parameters', None)
 
         # properties wavefunction input must be set after crystal run
         options_dict = self.inputs.options.get_dict()
-        self.ctx.need_phonons = options_dict.get('need_phonons', self.DEFAULT['need_phonons'])
-        self.ctx.need_elastic_constants = options_dict.get('need_elastic_constants', self.DEFAULT['need_elastic_constants'])
-        self.ctx.need_electronic_properties = options_dict.get('need_properties',
-                                                               self.DEFAULT['need_electronic_properties'])
+        self.ctx.need_elastic_constants = options_dict.get('need_elastic_constants',
+                                                           self.DEFAULT['need_elastic_constants'])
 
     def get_geometry(self):
         """ Getting geometry from MPDS database
@@ -165,17 +178,13 @@ class MPDSCrystalWorkchain(WorkChain):
         return self.to_context(optimise=crystal_run)
 
     def calculate_phonons(self):
-        if self.ctx.need_phonons:
-            # run phonons with optimised structure
-            self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
-            self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.phonons)
-            self.ctx.inputs.crystal.options = get_data_class('dict')(
-                dict=self.construct_metadata(PHONON_LABEL))
-            crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
-            return self.to_context(phonons=crystal_run)
+        self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
+        self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.phonons)
+        self.ctx.inputs.crystal.options = get_data_class('dict')(
+            dict=self.construct_metadata(PHONON_LABEL))
+        crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
+        return self.to_context(phonons=crystal_run)
 
-        else:
-            self.logger.warning("Skipping phonon frequency calculation")
 
     def calculate_elastic_constants(self):
         if self.ctx.need_elastic_constants:
@@ -192,15 +201,11 @@ class MPDSCrystalWorkchain(WorkChain):
             self.logger.warning("Skipping elastic constants calculation")
 
     def run_properties_calc(self):
-        if self.ctx.need_electronic_properties:
-            self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
-            self.ctx.inputs.properties.options = get_data_class('dict')(
-                dict=self.construct_metadata(PROPERTIES_LABEL))
-            properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
-            return self.to_context(properties=properties_run)
-
-        else:
-            self.logger.warning("Skipping one-electron properties calculation")
+        self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
+        self.ctx.inputs.properties.options = get_data_class('dict')(
+            dict=self.construct_metadata(PROPERTIES_LABEL))
+        properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
+        return self.to_context(properties=properties_run)
 
     def retrieve_results(self):
         """ Expose all outputs of optimized structure and properties calcs
