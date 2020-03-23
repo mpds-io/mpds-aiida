@@ -1,4 +1,8 @@
-
+"""
+This script parses and downloads the CRYSTAL online
+basis set library and for each chemical element
+selects and saves a single appropriate basis set
+"""
 import os
 from ase.data import chemical_symbols
 from pycrystal import download_basis_library
@@ -46,6 +50,7 @@ for el in sorted(bs_library.keys()):
         if 'rev2' in title:
             save(el, candidates[title])
 
+print('--- TO DO MANUAL CHOICE ---')
 unsaved = set(bs_library.keys()) - saved
 for el in unsaved:
     print(el, [item['title'] for item in bs_library[el]])
