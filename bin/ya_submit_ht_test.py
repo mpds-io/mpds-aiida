@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import sys
+import random
 from itertools import product
 from configparser import ConfigParser
 
@@ -25,7 +27,18 @@ client = MPDSDataRetrieval()
 calc_setup = get_template()
 bs_repo = get_basis_sets(calc_setup['basis_family'])
 
+try:
+    how_many = int(sys.argv[1])
+except (IndexError, ValueError):
+    how_many = False
+
+counter = 0
+random.shuffle(ela)
+random.shuffle(elb)
+
 for elem_pair in product(ela, elb):
+    if how_many and counter >= how_many: raise SystemExit
+
     print(elem_pair)
     structures = get_mpds_structures(client, elem_pair, more_query_args=dict(lattices='cubic'))
     structures_by_sgn = {}
@@ -34,6 +47,9 @@ for elem_pair in product(ela, elb):
         structures_by_sgn.setdefault(s.info['spacegroup'].no, []).append(s)
 
     for sgn_cls in structures_by_sgn:
+
+        if how_many and counter >= how_many: raise SystemExit
+
         # get structures with the minimal number of atoms and find one with the median cell vectors
         minimal_struct = min([len(s) for s in structures_by_sgn[sgn_cls]])
         cells = np.array([s.get_cell().reshape(9) for s in structures_by_sgn[sgn_cls] if len(s) == minimal_struct])
@@ -47,3 +63,4 @@ for elem_pair in product(ela, elb):
         setup_input = get_input(calc_setup['parameters']['crystal'], elem_pair, bs_repo, target_obj.info['phase'])
 
         yac.queue_submit_task(target_obj.info['phase'], dict(structure=struct_input, input=setup_input))
+        counter += 1

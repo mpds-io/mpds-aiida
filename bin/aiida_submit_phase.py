@@ -23,7 +23,7 @@ calc_setup['parameters']['crystal']['title'] = "/".join(phase)
 inputs = MPDSCrystalWorkchain.get_builder()
 inputs.crystal_code = Code.get_from_string('{}@{}'.format(calc_setup['codes'][0], calc_setup['cluster']))
 inputs.crystal_parameters = DataFactory('dict')(dict=calc_setup['parameters']['crystal'])
-inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create(calc_setup['basis_family'])
+inputs.basis_family, _ = DataFactory('crystal_dft.basis_family').get_or_create(calc_setup['basis_family'])
 inputs.options = DataFactory('dict')(dict=calc_setup['options'])
 
 inputs.metadata = dict(label="/".join(phase))

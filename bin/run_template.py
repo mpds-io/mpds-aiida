@@ -51,7 +51,7 @@ inputs.properties_code = Code.get_from_string('{}@{}'.format(calc['codes'][1], c
 inputs.crystal_parameters = DataFactory('dict')(dict=calc['parameters']['crystal'])
 inputs.properties_parameters = DataFactory('dict')(dict=calc['parameters']['properties'])
 
-inputs.basis_family, _ = DataFactory('crystal.basis_family').get_or_create(calc['basis_family'])
+inputs.basis_family, _ = DataFactory('crystal_dft.basis_family').get_or_create(calc['basis_family'])
 
 inputs.options = DataFactory('dict')(dict=calc['options'])
 

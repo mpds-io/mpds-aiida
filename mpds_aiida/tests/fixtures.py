@@ -31,7 +31,7 @@ def test_crystal_code(test_computer):
     code.description = 'CRYSTAL code'
     mock_exec = os.path.join(TEST_DIR, 'mock', 'crystal')
     code.set_remote_computer_exec((test_computer, mock_exec))
-    code.set_input_plugin_name('crystal.serial')
+    code.set_input_plugin_name('crystal_dft.serial')
     return code
 
 
@@ -45,7 +45,7 @@ def test_properties_code(test_computer):
     code.description = 'CRYSTAL properties code'
     mock_exec = os.path.join(TEST_DIR, 'mock', 'crystal')
     code.set_remote_computer_exec((test_computer, mock_exec))
-    code.set_input_plugin_name('crystal.properties')
+    code.set_input_plugin_name('crystal_dft.properties')
     return code
 
 
