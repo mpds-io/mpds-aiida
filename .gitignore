@@ -11,6 +11,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+bin/
 env/
 build/
 develop-eggs/
@@ -65,12 +66,3 @@ target/
 # Project specific
 run.py
 options.yml
-
-# venv
-bin/ase*
-bin/rst*
-bin/python*
-bin/circus*
-bin/activ*
-bin/easy*
-bin/f2py*
