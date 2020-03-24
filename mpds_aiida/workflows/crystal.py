@@ -34,7 +34,7 @@ class MPDSCrystalWorkchain(WorkChain):
         # MPDS phase id
         spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
         # Add direct structures submitting support: FIXME
-        spec.input('struct_in', valid_type=get_data_class('structure'))
+        spec.input('struct_in', valid_type=get_data_class('structure'), required=False)
 
         # Basis set
         spec.expose_inputs(BaseCrystalWorkChain, include=['basis_family'])
