@@ -26,7 +26,7 @@ for el in sorted(bs_library.keys()):
     eidx = chemical_symbols.index(el)
 
     if len(bs_library[el]) == 1:
-        save(el, gbasis['data'])
+        save(el, bs_library[el][0]['data'])
         continue
 
     if 56 < eidx < 72 or 88 < eidx < 104: # f-elements
