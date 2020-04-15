@@ -27,9 +27,6 @@ parameters:
         type: CELLONLY
         convergence:
           TOLDEE: 8
-      phonons: true
-      elastic_constants:
-        type: ELASTCON
 
   properties:
     band:

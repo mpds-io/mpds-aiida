@@ -1,5 +1,6 @@
 """
 ln -s /root/bin/Pproperties /usr/bin/Pproperties
+apt-get -y install openmpi-bin
 """
 import os
 import time
@@ -159,7 +160,7 @@ def run_properties_direct(wf_path, input_dict):
         'gap': gap,
         'is_direct': is_direct,
         'dos': edata['DOSS']['dos'].tolist(),
-        'levels': dos_energies,
+        'levels': dos_energies.tolist(),
         'k_points': k_points,
         'stripes': stripes,
         'work_folder': work_folder,
