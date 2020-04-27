@@ -103,3 +103,8 @@ Note: this repo is subject to change and presents an ongoing work in progress.
 Code: [MIT](https://en.wikipedia.org/wiki/MIT_License)
 
 The resulting data are available at the [MPDS platform](https://mpds.io/search/ab%20initio%20calculations), according to the CC BY 4.0 license.
+
+
+## Issues and troubleshooting
+
+Please, report any issues in the respective repositories: [aiida-crystal-dft](https://github.com/tilde-lab/aiida-crystal-dft), [yascheduler](https://github.com/tilde-lab/yascheduler), [mpds-ml-labs](https://github.com/mpds-io/mpds-ml-labs), [aiida](https://github.com/aiidateam/aiida-core), [mpds_client](https://github.com/mpds-io/mpds_client), _etc._

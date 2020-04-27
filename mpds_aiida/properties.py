@@ -83,6 +83,8 @@ def run_properties_direct(wf_path, input_dict):
     ]))
     os.makedirs(work_folder, exist_ok=False)
     shutil.copy(wf_path, work_folder)
+    shutil.copy(os.path.join(os.path.dirname(wf_path), 'fort.34'), work_folder) # save structure
+
     wf = Fort9(os.path.join(work_folder, 'fort.9'))
 
     # automatic generation of k-point path

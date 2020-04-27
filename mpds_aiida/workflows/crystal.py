@@ -185,7 +185,6 @@ class MPDSCrystalWorkchain(WorkChain):
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(phonons=crystal_run)
 
-
     def calculate_elastic_constants(self):
         if self.ctx.need_elastic_constants:
             # run elastic calc with optimised structure
