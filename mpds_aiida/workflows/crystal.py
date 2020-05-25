@@ -23,6 +23,8 @@ class MPDSCrystalWorkchain(WorkChain):
                'need_elastic_constants': True,
                'need_electronic_properties': True}
 
+    CALC_STRINGS = ("optimise", "phonons", "elastic_constants", "electronic_properties")
+
     @classmethod
     def define(cls, spec):
         super(MPDSCrystalWorkchain, cls).define(spec)
@@ -51,6 +53,9 @@ class MPDSCrystalWorkchain(WorkChain):
                      if_(cls.needs_phonons)(
                          cls.calculate_phonons),
                      cls.calculate_elastic_constants,
+                     # correctly finalized
+                     if_(cls.correctly_finalized("elastic_constants"))(
+                         cls.print_exit_status),
                      if_(cls.needs_properties_run)(
                          cls.run_properties_calc),
                      cls.retrieve_results)
@@ -198,6 +203,20 @@ class MPDSCrystalWorkchain(WorkChain):
 
         else:
             self.logger.warning("Skipping elastic constants calculation")
+
+    @staticmethod
+    def correctly_finalized(calc_string):
+        def wrapped(self):
+            assert calc_string in self.CALC_STRINGS
+            if not hasattr(self.ctx, calc_string):
+                return False
+            calc = self.ctx.get(calc_string)
+            return calc.is_finished_ok
+        return wrapped
+
+    def print_exit_status(self):
+        self.logger.info("Elastic calc correctly finalized: {}".format(
+            self.correctly_finalized("elastic_constants")(self)))
 
     def run_properties_calc(self):
         self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
