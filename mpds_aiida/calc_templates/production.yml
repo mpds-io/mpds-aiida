@@ -4,7 +4,7 @@ codes:
   - Pcrystal
 
 options:
-  need_phonons: false
+  need_phonons: true
   need_elastic_constants: true
   need_properties: false
   try_oxi_if_fails: true
@@ -12,7 +12,7 @@ options:
     num_machines: 42
     num_mpiprocs_per_machine: 42
 
-basis_family: TZVP_REV2
+basis_family: MPDSBSL_NEUTRAL
 
 parameters:
   crystal:
@@ -41,8 +41,8 @@ parameters:
   properties:
     band:
       shrink: 8
-      k_points: 30
+      k_points: 80
     newk:
       k_points: [6, 6]
     dos:
-      n_e: 1000
+      n_e: 25000
