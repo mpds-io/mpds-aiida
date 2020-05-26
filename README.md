@@ -49,7 +49,7 @@ The AiiDA should be set up normally, and the stub remote *computer* (_e.g._ `clu
 
 ```shell
 reentry scan
-verdi quicksetup
+verdi setup
 verdi computer setup
 verdi computer configure ssh $COMPUTER
 verdi computer test $COMPUTER --print-traceback
@@ -70,6 +70,8 @@ or, to add the internal basis sets predefined in CRYSTAL:
 verdi data crystal_dft createpredefined
 ```
 
+Then the desired name ($BASIS_FAMILY) should be used in the calculation settings inside `mpds_aiida/calc_templates` (see below).
+
 
 ## Usage
 
@@ -80,7 +82,7 @@ export MPDS_KEY=...
 ```
 (Please do not forget to withdraw _i.e._ invalidate the API key after finishing the work.)
 
-A template system is used to control the calculation parameters, see the `mpds_aiida/calc_templates` subfolder. Note, that the `options: resources` template directive makes no sense with our custom cloud scheduler, and the `cluster`, `codes`, and `basis_family` template directives have to be specified exactly as defined above.
+A template system is used to control the calculation parameters, see the `mpds_aiida/calc_templates` subfolder. Note, that the `options: resources` template directive makes no sense with our custom cloud scheduler. The `cluster`, `codes`, and `basis_family` template directives have to be specified exactly as defined above.
 
 The following on-demand cloud providers are currently supported (resp. `yascheduler` directives given in brackets):
 
