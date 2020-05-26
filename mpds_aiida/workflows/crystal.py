@@ -194,10 +194,12 @@ class MPDSCrystalWorkchain(WorkChain):
         if self.ctx.need_elastic_constants:
             # run elastic calc with optimised structure
             self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
+            options = self.construct_metadata(ELASTIC_LABEL)
+            if "oxidation_states" in self.ctx.optimise.outputs:
+                options["use_oxidation_states"] = self.ctx.optimise.outputs.oxidation_states.get_dict()
             self.ctx.inputs.crystal.parameters = get_data_class('dict')(
                 dict=self.ctx.crystal_parameters.elastic_constants)
-            self.ctx.inputs.crystal.options = get_data_class('dict')(
-                dict=self.construct_metadata(ELASTIC_LABEL))
+            self.ctx.inputs.crystal.options = get_data_class('dict')(dict=options)
             crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
             return self.to_context(elastic_constants=crystal_run)
 
@@ -237,3 +239,9 @@ class MPDSCrystalWorkchain(WorkChain):
 
         if self.ctx.need_electronic_properties:
             self.out_many(self.exposed_outputs(self.ctx.properties, BasePropertiesWorkChain))
+
+
+def _not(f):
+    def wrapped(self):
+        return not f(self)
+    return wrapped
