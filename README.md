@@ -4,6 +4,7 @@ Cloud factory for the accurate materials data
 using the MPDS data platform, AiiDA workflows, and CRYSTAL simulation engine.
 
 ![MPDS](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/mpds.png "MPDS + AiiDA + CRYSTAL") ![AiiDA](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/aiida.png "AiiDA + MPDS + CRYSTAL") ![CRYSTAL](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/crystal.jpg "CRYSTAL + MPDS + AiiDA")
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmpds-io%2Fmpds-aiida.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmpds-io%2Fmpds-aiida?ref=badge_shield)
 
 
 ## Rationale
@@ -106,6 +107,9 @@ Code: [MIT](https://en.wikipedia.org/wiki/MIT_License)
 
 The resulting data are available at the [MPDS platform](https://mpds.io/search/ab%20initio%20calculations), according to the CC BY 4.0 license.
 
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmpds-io%2Fmpds-aiida.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmpds-io%2Fmpds-aiida?ref=badge_large)
 
 ## Issues and troubleshooting
 
