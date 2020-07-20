@@ -3,15 +3,15 @@ Cloud factory for the accurate materials data
 
 using the MPDS data platform, AiiDA workflows, and CRYSTAL simulation engine.
 
-![MPDS](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/mpds.png "MPDS + AiiDA + CRYSTAL") ..... ![AiiDA](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/aiida.png "AiiDA + MPDS + CRYSTAL") ..... ![CRYSTAL](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/crystal.jpg "CRYSTAL + MPDS + AiiDA")
+![MPDS](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/mpds.png "MPDS + AiiDA + CRYSTAL") ![AiiDA](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/aiida.png "AiiDA + MPDS + CRYSTAL") ![CRYSTAL](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/crystal.jpg "CRYSTAL + MPDS + AiiDA")
 
 
 ## Rationale
 
-- get accurate encyclopedic, reference, and benchmarking data
+- get accurate encyclopedic, reference, and benchmarking scientific data
 - get vast systematic training data for machine learning
 - use the cheap commodity cloud environment (_not_ the HPC cluster)
-- ensure provenance tracking and reproducibility with AiiDA
+- ensure provenance tracking and reproducibility of simulations with AiiDA
 
 
 ## Installation
