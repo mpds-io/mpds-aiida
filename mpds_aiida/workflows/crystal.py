@@ -106,8 +106,7 @@ class MPDSCrystalWorkchain(WorkChain):
     def get_geometry(self):
         """ Getting geometry from MPDS database
         """
-        key = os.getenv('MPDS_KEY')
-        client = MPDSDataRetrieval(api_key=key, verbose=False)
+        client = MPDSDataRetrieval()
         query_dict = self.inputs.mpds_query.get_dict()
 
         # Add direct structures submitting support: FIXME
@@ -115,8 +114,13 @@ class MPDSCrystalWorkchain(WorkChain):
         if not query_dict:
             return self.inputs.struct_in
 
-        # insert props: atomic structure to query. Might check if it's already set to smth
+        # prepare query
         query_dict['props'] = 'atomic structure'
+        if 'classes' in query_dict:
+            query_dict['classes'] += ', non-disordered'
+        else:
+            query_dict['classes'] = 'non-disordered'
+
         try:
             answer = client.get_data(
                 query_dict,

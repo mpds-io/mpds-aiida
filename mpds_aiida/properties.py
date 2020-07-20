@@ -28,7 +28,7 @@ import psutil
 
 EXEC_PATH = "/usr/bin/Pproperties"
 #EXEC_PATH = "/root/bin/properties"
-EXEC_TIMEOUT = 300 # NB five minutes
+EXEC_TIMEOUT = 900 # NB fifteen minutes
 exec_cmd = "/usr/bin/mpirun -np 1 --allow-run-as-root -wd %s %s > %s 2>&1"
 #exec_cmd = "cd %s && %s < INPUT > %s 2>&1"
 
@@ -66,7 +66,7 @@ def get_band_gap_info(band_stripes):
     else:
         raise RuntimeError("Unexpected data in band structure: no bands above zero found!")
 
-    if direct_gap > 50 or indirect_gap > 50: # eV
+    if direct_gap > 100 or indirect_gap > 100: # eV
         raise RuntimeError("Unphysical band gap occured!")
 
     if direct_gap <= indirect_gap:
@@ -145,7 +145,7 @@ def run_properties_direct(wf_path, input_dict):
     if not os.path.exists(os.path.join(work_folder, 'BAND.DAT')) \
         or not os.path.exists(os.path.join(work_folder, 'DOSS.DAT')) \
         or not os.path.exists(os.path.join(work_folder, 'fort.25')):
-        return None, 'No PROPERTIES outputs'
+        return None, 'No PROPERTIES outputs at %s' % work_folder
 
     edata = Fort25(os.path.join(work_folder, 'fort.25')).parse()
 
@@ -210,5 +210,6 @@ def run_properties_direct(wf_path, input_dict):
         'stripes': np.round(stripes, 3).tolist(),
         # - auxiliary
         'work_folder': work_folder,
-        'units': 'eV'
+        'units': 'eV',
+        'error': None
     }, None
