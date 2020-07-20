@@ -110,3 +110,7 @@ The resulting data are available at the [MPDS platform](https://mpds.io/search/a
 ## Issues and troubleshooting
 
 Please, report any issues in the respective repositories: [aiida-crystal-dft](https://github.com/tilde-lab/aiida-crystal-dft), [yascheduler](https://github.com/tilde-lab/yascheduler), [mpds-ml-labs](https://github.com/mpds-io/mpds-ml-labs), [aiida](https://github.com/aiidateam/aiida-core), [mpds_client](https://github.com/mpds-io/mpds_client), _etc._
+
+The Google Cloud machines need first to be prepared via the web-browser SSH console (note `sudo -i`). The file `/etc/ssh/sshd_config` should be changed to allow `root` user to log in.
+
+The Amazon EC2 machines need first to be accessed with the `admin` user (note `sudo -i`). Then the file `/root/.ssh/authorized_keys` needs to be cleaned to allow `root` user to log in.

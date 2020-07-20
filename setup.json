@@ -11,6 +11,7 @@
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Scientific/Engineering :: Physics"
     ],
@@ -30,5 +31,6 @@
         "mpds_aiida": [
             "calc_templates/*"
         ]
-    }
+    },
+    "python_requires": ">=3.5"
 }

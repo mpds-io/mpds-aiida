@@ -26,6 +26,8 @@ parameters:
           TOLLGRID: 16
       numerical:
         TOLDEE: 9
+        BIPOSIZE: 64000000
+        EXCHSIZE: 64000000
       post_scf: ['PPAN']
     geometry:
       optimise:
