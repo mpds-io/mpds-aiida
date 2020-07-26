@@ -6,7 +6,7 @@ from collections import namedtuple
 import yaml
 from ase.data import chemical_symbols
 
-from aiida_crystal_dft.io.d12_write import write_input
+from aiida_crystal_dft.io.d12 import D12
 from aiida_crystal_dft.io.basis import BasisFile # NB only used to determine ecp
 from mpds_client import APIError
 
@@ -53,12 +53,19 @@ def get_template(template='minimal.yml'):
     return calc
 
 
-def get_input(calc_params_crystal, elements, bs_repo, label):
+def get_input(calc_params_crystal, elements, bs_src, label):
     """
-    Generates a test input
+    Generates a program input
     """
     calc_params_crystal['title'] = label
-    return write_input(calc_params_crystal, [bs_repo[el] for el in elements])
+
+    if isinstance(bs_src, dict):
+        return D12(parameters=calc_params_crystal, basis=[bs_src[el] for el in elements])
+
+    elif isinstance(bs_src, str):
+        return D12(parameters=calc_params_crystal, basis=bs_src)
+
+    raise RuntimeError('Unknown basis set source format!')
 
 
 supported_arities = {1: 'unary', 2: 'binary', 3: 'ternary', 4: 'quaternary', 5: 'quinary'}
