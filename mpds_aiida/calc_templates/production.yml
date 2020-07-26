@@ -8,6 +8,7 @@ options:
   need_elastic_constants: true
   need_properties: false
   try_oxi_if_fails: true
+  is_magnetic: true
   resources:
     num_machines: 42
     num_mpiprocs_per_machine: 42
@@ -17,8 +18,9 @@ basis_family: MPDSBSL_NEUTRAL
 parameters:
   crystal:
     scf:
-      k_points: [8, 16]
+      k_points: [16, 48]
       dft:
+        SPIN: True
         xc: PBE0
         grid: XLGRID
         numerical:
@@ -26,17 +28,24 @@ parameters:
           TOLLGRID: 16
       numerical:
         TOLDEE: 9
-        BIPOSIZE: 64000000
-        EXCHSIZE: 64000000
+        BIPOSIZE: 128000000
+        EXCHSIZE: 128000000
+        TOLINTEG: [8, 8, 8, 8, 30]
+        FMIXING: 70
+        SMEAR: 0.01
+        NOSHIFT: True
+      fock_mixing: DIISALLK
       post_scf: ['PPAN']
     geometry:
       optimise:
+        hessian: HESSIDEN
         convergence:
           TOLDEE: 9
       phonons:
-        ir:
-          type: INTCPHF
-        raman: true
+        TEMPERAT: [35, 5.7125, 1000]
+        INTENS:
+          INTRAMAN:
+            INTCPHF: True
       elastic_constants:
         type: ELASTCON
 
@@ -45,6 +54,6 @@ parameters:
       shrink: 8
       k_points: 80
     newk:
-      k_points: [6, 6]
+      k_points: [16, 16]
     dos:
       n_e: 25000
