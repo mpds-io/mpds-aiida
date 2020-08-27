@@ -1,0 +1,4 @@
+git+https://github.com/tilde-lab/tilde
+git+https://github.com/tilde-lab/aiida-crystal-dft
+git+https://github.com/tilde-lab/yascheduler
+git+https://github.com/mpds-io/mpds-ml-labs
