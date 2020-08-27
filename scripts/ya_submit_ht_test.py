@@ -59,8 +59,9 @@ for elem_pair in product(ela, elb):
 
         f34_input = Fort34([bs_repo[el] for el in elem_pair])
         struct_input = f34_input.from_ase(target_obj)
-        struct_input = str(struct_input)
         setup_input = get_input(calc_setup['parameters']['crystal'], elem_pair, bs_repo, target_obj.info['phase'])
+        struct_input = str(struct_input)
+        setup_input = str(setup_input)
 
         yac.queue_submit_task(target_obj.info['phase'], dict(structure=struct_input, input=setup_input))
         counter += 1

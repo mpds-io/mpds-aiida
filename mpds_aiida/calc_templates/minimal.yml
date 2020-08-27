@@ -11,7 +11,7 @@ options:
     num_machines: 42
     num_mpiprocs_per_machine: 42
 
-basis_family: TZVP_REV2
+basis_family: MPDSBSL_NEUTRAL
 
 parameters:
   crystal:

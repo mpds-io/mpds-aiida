@@ -20,7 +20,7 @@ def get_basis_sets(repo_dir):
     Keeps all available BS in a dict for convenience
     NB. we assume BS repo_dir = AiiDA's *basis_family*
     """
-    assert os.path.exists(repo_dir)
+    assert os.path.exists(repo_dir), "No folder %s with the basis sets found" % repo_dir
     bs_repo = {}
     for filename in os.listdir(repo_dir):
         if not filename.endswith('.basis'):

@@ -4,6 +4,9 @@ import os, sys
 import traceback
 import time
 import copy
+from datetime import datetime
+import socket
+
 import pg8000
 import ujson as json
 
@@ -21,6 +24,8 @@ results = {}
 
 pgconn = pg8000.connect(user=aiida_cnf['AIIDADB_USER'], password=aiida_cnf['AIIDADB_PASS'], database=aiida_cnf['AIIDADB_NAME'], host=aiida_cnf['AIIDADB_HOST'])
 pgcursor = pgconn.cursor()
+
+OUTPUT_FILE = 'eprops_%s_%s.json' % (socket.gethostname(), datetime.now().strftime('%Y%m%d'))
 
 start_time = time.time()
 pgcursor.execute("SELECT label, attributes->>'remote_workdir' FROM db_dbnode WHERE label LIKE '%Geometry optimization%' ORDER BY label;")
@@ -52,20 +57,21 @@ for row in pgcursor.fetchall():
         result, error = run_properties_direct(row[1] + os.sep + 'fort.9', copy.deepcopy(calc_setup['parameters']['properties']))
     except: # handle internal errors
         exc_type, exc_value, exc_tb = sys.exc_info()
-        print("--------- Exception at %s: %s" % (phase, "".join(traceback.format_exception(exc_type, exc_value, exc_tb))))
-        continue
+        error = "ERROR: Exception at %s: %s" % (phase, "".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
+        result = {'error': error}
+        print(error)
     if error:
-        print("- Properties failed at %s: %s" % (phase, error))
-        continue
+        error = "ERROR: Properties failed at %s: %s" % (phase, error)
+        result = {'error': error}
+        print(error)
 
     if phase in results:
-        print("%s and %s are dups" % (results[phase]['work_folder'], result['work_folder']))
+        print("%s and %s are dups" % (results[phase].get('work_folder'), result.get('work_folder', row[1])))
         continue
 
     results[phase] = result
-    print(">>>>>>>> %s: E_ind.=%2.2f E_dir.=%2.2f" % (phase, result['indirect_gap'] or 0, result['direct_gap'] or 0))
 
-f = open('e_props.json', 'w')
+f = open(OUTPUT_FILE, 'w')
 f.write(json.dumps(results))
 f.close()
 print("Done in %1.2f sc" % (time.time() - start_time))
