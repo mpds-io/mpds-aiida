@@ -11,7 +11,7 @@ import pg8000
 import ujson as json
 
 from mpds_aiida.common import get_template, get_aiida_cnf
-from mpds_aiida.properties import run_properties_direct
+from mpds_aiida.properties import guess_metal, run_properties_direct
 from tilde.core.api import API as TildeAPI
 from aiida import load_profile
 
@@ -68,6 +68,9 @@ for row in pgcursor.fetchall():
     if phase in results:
         print("%s and %s are dups" % (results[phase].get('work_folder'), result.get('work_folder', row[1])))
         continue
+
+    if guess_metal(calc.structures[-1]) and (result.get('direct_gap') or result.get('indirect_gap')):
+        print('CAUTION! %s: SUSPICION FOR METAL WITH BAND GAP' % phase)
 
     results[phase] = result
 
