@@ -27,10 +27,10 @@ import psutil
 
 
 EXEC_PATH = "/usr/bin/Pproperties"
-#EXEC_PATH = "/root/bin/properties"
+#EXEC_PATH = "/root/bin/properties" # NB. MAY BE NEEDED AT SOME AIIDA INSTANCES, E.G. AT SCW
 EXEC_TIMEOUT = 900 # NB fifteen minutes
 exec_cmd = "/usr/bin/mpirun -np 1 --allow-run-as-root -wd %s %s > %s 2>&1"
-#exec_cmd = "cd %s && %s < INPUT > %s 2>&1"
+#exec_cmd = "cd %s && %s < INPUT > %s 2>&1" # NB. MAY BE NEEDED AT SOME AIIDA INSTANCES, E.G. AT SCW
 
 config = ConfigParser()
 config.read(CONFIG_FILE)
@@ -75,6 +75,23 @@ def get_band_gap_info(band_stripes):
         return indirect_gap, direct_gap
 
 
+def guess_metal(ase_obj):
+    """
+    Make an educated guess of the metallic compound character,
+    returns bool
+    """
+    non_metallic_atoms = {
+    'H',                                  'He',
+    'Be',   'B',  'C',  'N',  'O',  'F',  'Ne',
+                  'Si', 'P',  'S',  'Cl', 'Ar',
+                  'Ge', 'As', 'Se', 'Br', 'Kr',
+                              'Te', 'I',  'Xe',
+                              'Po', 'At', 'Rn',
+                                          'Og'
+    }
+    return not any([el for el in set(ase_obj.get_chemical_symbols()) if el in non_metallic_atoms])
+
+
 def kill(proc_pid):
     process = psutil.Process(proc_pid)
     for proc in process.children(recursive=True):
@@ -82,23 +99,23 @@ def kill(proc_pid):
     process.kill()
 
 
-def run_properties_direct(wf_path, input_dict):
+def run_properties_direct(wf_path, input_dict, work_folder=None):
     """
     This procedure runs properties
     outside of AiiDA graph and scheduler
     """
-    assert wf_path.endswith('fort.9')
-    assert 'band' in input_dict and 'dos' in input_dict
-    assert 'first' not in input_dict['dos'] and 'first' not in input_dict['band']
-    assert 'last' not in input_dict['dos'] and 'last' not in input_dict['band']
-    print('Working with %s' % wf_path)
+    assert wf_path.endswith('fort.9') and 'band' in input_dict and 'dos' in input_dict \
+        and 'first' not in input_dict['dos'] and 'first' not in input_dict['band'] \
+        and 'last' not in input_dict['dos'] and 'last' not in input_dict['band']
 
-    work_folder = os.path.join(config.get('local', 'data_dir'), '_'.join([
-        'props',
-        datetime.now().strftime('%Y%m%d_%H%M%S'),
-        ''.join([random.choice(string.ascii_lowercase) for _ in range(4)])
-    ]))
-    os.makedirs(work_folder, exist_ok=False)
+    if not work_folder:
+        work_folder = os.path.join(config.get('local', 'data_dir'), '_'.join([
+            'props',
+            datetime.now().strftime('%Y%m%d_%H%M%S'),
+            ''.join([random.choice(string.ascii_lowercase) for _ in range(4)])
+        ]))
+        os.makedirs(work_folder, exist_ok=False)
+
     shutil.copy(wf_path, work_folder)
     shutil.copy(os.path.join(os.path.dirname(wf_path), 'fort.34'), work_folder) # save structure
 
@@ -149,8 +166,9 @@ def run_properties_direct(wf_path, input_dict):
 
     edata = Fort25(os.path.join(work_folder, 'fort.25')).parse()
 
-    assert sum(edata['DOSS']['e']) == 0 # all zeros, FIXME?
-    print('>N DOSS: %s' % len(edata['DOSS']['dos'][0]))
+    assert sum(edata['DOSS']['e']) == 0 # all zeros in fort.25
+    assert len(edata['DOSS']['dos_up'][0]) == len(edata['DOSS']['dos_down'][0])
+    print('>N DOSS: %s' % len(edata['DOSS']['dos_up'][0]))
 
     path = edata['BAND']['path']
     k_number = edata['BAND']['n_k']
@@ -172,16 +190,20 @@ def run_properties_direct(wf_path, input_dict):
     k_points = bands_data.get_kpoints().tolist()
     print('>N KPOINTS: %s' % len(k_points))
     print('>N BANDS: %s' % len(edata['BAND']['bands'][0]))
+    print('>E_Fermi in bands: %s' % edata['BAND']['e_fermi'])
+    print('>E_Fermi in   dos: %s' % edata['DOSS']['e_fermi'])
 
-    edata['BAND']['bands'] -= edata['DOSS']['e_fermi']
+    edata['BAND']['bands'] -= edata['BAND']['e_fermi']
     edata['BAND']['bands'] *= Hartree
-    edata['DOSS']['dos']   -= edata['DOSS']['e_fermi']
-    edata['DOSS']['dos']   *= Hartree
+
+    edata['DOSS']['dos_up'] += edata['DOSS']['dos_down']
+    edata['DOSS']['dos_up'] *= Hartree
+
     # get rid of the negative DOS artifacts
-    edata['DOSS']['dos'][ edata['DOSS']['dos'] < 0 ] = 0
+    edata['DOSS']['dos_up'][ edata['DOSS']['dos_up'] < 0 ] = 0
 
     e_min, e_max = np.amin(edata['BAND']['bands']), np.amax(edata['BAND']['bands'])
-    dos_energies = np.linspace(e_min, e_max, num=len(edata['DOSS']['dos'][0]))
+    dos_energies = np.linspace(e_min, e_max, num=len(edata['DOSS']['dos_up'][0]))
     stripes = edata['BAND']['bands'].transpose().copy()
 
     if is_conductor(stripes):
@@ -195,7 +217,7 @@ def run_properties_direct(wf_path, input_dict):
     dos = []
     for n, i in enumerate(dos_energies): # FIXME use numpy advanced slicing
         if E_MIN < i < E_MAX:
-            dos.append(edata['DOSS']['dos'][0][n])
+            dos.append(edata['DOSS']['dos_up'][0][n])
     dos_energies = dos_energies[ (dos_energies > E_MIN) & (dos_energies < E_MAX) ]
 
     return {
