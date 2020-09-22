@@ -172,3 +172,27 @@ def get_aiida_cnf():
     with open(cnf_path) as f:
         contents = json.loads(f.read())
     return contents['profiles'][contents['default_profile']]
+
+
+ARCHIVE_README = "\r\n".join("""In-house MPDS / PAULING FILE ab initio calculations data
+(c) by Sobolev, Civalleri, Maschio, Erba, Dovesi, Villars, Blokhin
+
+Please, cite as:
+Sobolev, Civalleri, Maschio, Erba, Dovesi, Villars, Blokhin,
+https://mpds.io/phase/{phase}
+https://mpds.io/calculations/{aname}.7z
+
+These data are licensed under a Creative Commons Attribution 4.0 International License.
+http://creativecommons.org/licenses/by/4.0
+
+The calculations are done using the CRYSTAL code:
+Dovesi, Erba, Orlando, Zicovich-Wilson, Civalleri, Maschio, Rerat, Casassa,
+Baima, Salustro, Kirtman. WIREs Comput Mol Sci. (2018),
+https://doi.org/10.1002/wcms.1360
+Dovesi, Saunders, Roetti, Orlando, Zicovich-Wilson, Pascale, Civalleri, Doll,
+Harrison, Bush, D'Arco, Llunell, Causa, Noel, Maschio, Erba, Rerat, Casassa.
+CRYSTAL17 User Manual (University of Turin, 2017), http://www.crystal.unito.it
+
+The automation is done using the AiiDA code:
+Pizzi, Cepellotti, Sabatini, Marzari, Kozinsky. Comp Mat Sci (2016),
+https://doi.org/10.1016/j.commatsci.2015.09.013""".splitlines())
