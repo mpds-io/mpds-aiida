@@ -31,7 +31,9 @@ bands, dos = output
 print("Writing JSONs")
 
 wf = Fort9(sys.argv[1])
-result = properties_export(bands, dos, wf.get_ase())
+result, error = properties_export(bands, dos, wf.get_ase())
+if error:
+    raise RuntimeError(error)
 
 f = open('bands.json', 'w')
 f.write(json.dumps({'sample': {'measurement': [{'property': {'matrix': {

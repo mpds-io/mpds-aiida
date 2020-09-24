@@ -67,9 +67,6 @@ def get_band_gap_info(band_stripes):
     else:
         raise RuntimeError("Unexpected data in band structure: no bands above zero found!")
 
-    if direct_gap > 100 or indirect_gap > 100: # eV
-        raise RuntimeError("Unphysical band gap occured!")
-
     if direct_gap <= indirect_gap:
         return False, direct_gap
     else:
@@ -86,7 +83,7 @@ def guess_metal(ase_obj):
     'Be',   'B',  'C',  'N',  'O',  'F',  'Ne',
                   'Si', 'P',  'S',  'Cl', 'Ar',
                   'Ge', 'As', 'Se', 'Br', 'Kr',
-                              'Te', 'I',  'Xe',
+                        'Sb', 'Te', 'I',  'Xe',
                               'Po', 'At', 'Rn',
                                           'Og'
     }
@@ -228,8 +225,14 @@ def properties_export(bands_data, dos_data, ase_struct):
     else:
         indirect_gap, direct_gap = get_band_gap_info(stripes)
 
+    if direct_gap > 50 or indirect_gap > 50:
+        return None, '%s: UNPHYSICAL BAND GAP: %s / %s' % (ase_struct.get_chemical_formula(), direct_gap, indirect_gap)
+
+    if direct_gap > 15 or indirect_gap > 15:
+        warnings.warn('%s: SUSPICION FOR UNPHYSICAL BAND GAP: %s / %s' % (ase_struct.get_chemical_formula(), direct_gap, indirect_gap))
+
     if guess_metal(ase_struct) and (direct_gap or indirect_gap):
-        warnings.warn('%s: SUSPICION FOR METAL WITH BAND GAP' % ase_struct.get_chemical_formula())
+        warnings.warn('%s: SUSPICION FOR METAL WITH BAND GAPS: %s / %s' % (ase_struct.get_chemical_formula(), direct_gap, indirect_gap))
 
     # export only the range of the interest
     E_MIN, E_MAX = -10, 20
@@ -252,4 +255,4 @@ def properties_export(bands_data, dos_data, ase_struct):
         # bands values
         'k_points': bands_data.get_array('kpoints').tolist(),
         'stripes': np.round(stripes, 3).tolist(),
-    }
+    }, None
