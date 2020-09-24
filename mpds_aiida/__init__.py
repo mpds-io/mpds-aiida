@@ -3,7 +3,7 @@
 
 import os
 
-__version__ = "0.6"
+__version__ = "0.7"
 
 CALC_TPL_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),

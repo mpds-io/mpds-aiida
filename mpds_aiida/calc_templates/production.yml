@@ -56,4 +56,4 @@ parameters:
     newk:
       k_points: [6, 6]
     dos:
-      n_e: 25000
+      n_e: 40000
