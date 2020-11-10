@@ -10,7 +10,7 @@ from aiida_crystal_dft.io.d12 import D12
 from aiida_crystal_dft.io.basis import BasisFile # NB only used to determine ecp
 from mpds_client import APIError
 
-from mpds_aiida import CALC_TPL_DIR
+from mpds_aiida import TEMPLATE_DIR
 
 
 verbatim_basis = namedtuple("basis", field_names="content, all_electron")
@@ -41,7 +41,7 @@ def get_template(template='minimal.yml'):
     """
     Templates present the permanent calc setup
     """
-    template_loc = os.path.join(CALC_TPL_DIR, template)
+    template_loc = os.path.join(TEMPLATE_DIR, template)
     if not os.path.exists(template_loc):
         template_loc = template
 

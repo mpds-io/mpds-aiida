@@ -1,7 +1,6 @@
 """
 The workflow for AiiDA combining CRYSTAL and MPDS
 """
-import os
 import time
 import random
 
@@ -136,7 +135,8 @@ class MPDSCrystalWorkchain(WorkChain):
                 self.logger.warning("Too many parallel MPDS requests, chilling")
                 time.sleep(random.choice([2 * 2**m for m in range(5)]))
                 return self.get_geometry()
-            else: raise
+            else:
+                raise
 
         structs = [client.compile_crystal(line, flavor='ase') for line in answer]
         structs = list(filter(None, structs))
@@ -228,6 +228,7 @@ class MPDSCrystalWorkchain(WorkChain):
         self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
         self.ctx.inputs.properties.options = get_data_class('dict')(
             dict=self.construct_metadata(PROPERTIES_LABEL))
+        # noinspection PyTypeChecker
         properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
         return self.to_context(properties=properties_run)
 
