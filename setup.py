@@ -9,6 +9,8 @@ if __name__ == '__main__':
     # such that it can be discovered automatically
     with open('setup.json', 'r') as info:
         kwargs = json.load(info)
+    with open('requirements.txt', 'r') as reqs:
+        kwargs["install_requires"] = reqs.readlines()
     setup(
         packages=find_packages(),
         version=__version__,
