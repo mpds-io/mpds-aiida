@@ -1,12 +1,6 @@
 """
-The workflow for AiiDA combining CRYSTAL and MPDS
+The base workflow for AiiDA combining CRYSTAL and MPDS
 """
-import time
-import random
-
-import numpy as np
-from mpds_client import MPDSDataRetrieval, APIError
-
 from aiida.engine import WorkChain, if_
 from aiida.orm import Code
 from aiida.common.extendeddicts import AttributeDict
@@ -15,7 +9,7 @@ from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain, BasePropertie
 from . import GEOMETRY_LABEL, PHONON_LABEL, ELASTIC_LABEL, PROPERTIES_LABEL
 
 
-class MPDSCrystalWorkchain(WorkChain):
+class MPDSCrystalWorkChain(WorkChain):
     """ A workchain enclosing all calculations for getting as much data from Crystal runs as we can
     """
     DEFAULT = {'need_phonons': True,
@@ -26,14 +20,12 @@ class MPDSCrystalWorkchain(WorkChain):
 
     @classmethod
     def define(cls, spec):
-        super(MPDSCrystalWorkchain, cls).define(spec)
+        super(MPDSCrystalWorkChain, cls).define(spec)
 
         # define code inputs
         spec.input('crystal_code', valid_type=Code, required=True)
         spec.input('properties_code', valid_type=Code, required=False)
 
-        # MPDS phase id
-        spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
         # Add direct structures submitting support: FIXME
         spec.input('struct_in', valid_type=get_data_class('structure'), required=False)
 
@@ -102,54 +94,6 @@ class MPDSCrystalWorkchain(WorkChain):
         self.ctx.need_elastic_constants = options_dict.get('need_elastic_constants',
                                                            self.DEFAULT['need_elastic_constants'])
 
-    def get_geometry(self):
-        """ Getting geometry from MPDS database
-        """
-        client = MPDSDataRetrieval()
-        query_dict = self.inputs.mpds_query.get_dict()
-
-        # Add direct structures submitting support: FIXME
-        assert query_dict or self.inputs.struct_in
-        if not query_dict:
-            return self.inputs.struct_in
-
-        # prepare query
-        query_dict['props'] = 'atomic structure'
-        if 'classes' in query_dict:
-            query_dict['classes'] += ', non-disordered'
-        else:
-            query_dict['classes'] = 'non-disordered'
-
-        try:
-            answer = client.get_data(
-                query_dict,
-                fields={'S': [
-                    'cell_abc',
-                    'sg_n',
-                    'basis_noneq',
-                    'els_noneq'
-                ]}
-            )
-        except APIError as ex:
-            if ex.code == 429:
-                self.logger.warning("Too many parallel MPDS requests, chilling")
-                time.sleep(random.choice([2 * 2**m for m in range(5)]))
-                return self.get_geometry()
-            else:
-                raise
-
-        structs = [client.compile_crystal(line, flavor='ase') for line in answer]
-        structs = list(filter(None, structs))
-        if not structs:
-            raise APIError('No crystal structures returned')
-        minimal_struct = min([len(s) for s in structs])
-
-        # get structures with minimal number of atoms and find the one with median cell vectors
-        cells = np.array([s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct])
-        median_cell = np.median(cells, axis=0)
-        median_idx = int(np.argmin(np.sum((cells - median_cell) ** 2, axis=1) ** 0.5))
-        return get_data_class('structure')(ase=structs[median_idx])
-
     def validate_inputs(self):
         crystal_parameters = self.inputs.crystal_parameters.get_dict()
         geometry_parameters = crystal_parameters.pop('geometry')
@@ -183,6 +127,7 @@ class MPDSCrystalWorkchain(WorkChain):
     def optimize_geometry(self):
         self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.optimise)
         self.ctx.inputs.crystal.options = get_data_class('dict')(dict=self.construct_metadata(GEOMETRY_LABEL))
+        # noinspection PyTypeChecker
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(optimise=crystal_run)
 
@@ -191,6 +136,7 @@ class MPDSCrystalWorkchain(WorkChain):
         self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.phonons)
         self.ctx.inputs.crystal.options = get_data_class('dict')(
             dict=self.construct_metadata(PHONON_LABEL))
+        # noinspection PyTypeChecker
         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
         return self.to_context(phonons=crystal_run)
 
@@ -204,6 +150,7 @@ class MPDSCrystalWorkchain(WorkChain):
             self.ctx.inputs.crystal.parameters = get_data_class('dict')(
                 dict=self.ctx.crystal_parameters.elastic_constants)
             self.ctx.inputs.crystal.options = get_data_class('dict')(dict=options)
+            # noinspection PyTypeChecker
             crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
             return self.to_context(elastic_constants=crystal_run)
 
