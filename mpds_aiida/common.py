@@ -174,6 +174,14 @@ def get_aiida_cnf():
     return contents['profiles'][contents['default_profile']]
 
 
+def get_aiida_uuid(path_string):
+    parts = path_string.split('/')
+    for n in range(len(parts) - 1):
+        if len(parts[n]) == 2 and len(parts[n + 1]) == 2:
+            return parts[n] + parts[n + 1] + parts[n + 2]
+    return False
+
+
 ARCHIVE_README = "\r\n".join("""In-house MPDS / PAULING FILE ab initio calculations data
 (c) by Sobolev, Civalleri, Maschio, Erba, Dovesi, Villars, Blokhin
 
