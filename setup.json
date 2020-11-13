@@ -17,7 +17,9 @@
     ],
     "entry_points": {
         "aiida.workflows": [
-            "crystal.mpds = mpds_aiida.workflows.crystal:MPDSCrystalWorkchain"
+            "crystal.mpds = mpds_aiida.workflows.mpds:MPDSStructureWorkchain",
+            "crystal.cif = mpds_aiida.workflows.cif:CIFStructureWorkchain",
+            "crystal.aiida = mpds_aiida.workflows.aiida:AiidaStructureWorkchain"
         ]
     },
     "include_package_data": true,
