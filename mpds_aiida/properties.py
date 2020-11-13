@@ -17,6 +17,9 @@ from datetime import datetime
 
 import numpy as np
 from ase.units import Hartree
+import psutil
+from pyparsing import ParseException
+
 from yascheduler import CONFIG_FILE
 from aiida.plugins import DataFactory
 from aiida_crystal_dft.io.f9 import Fort9
@@ -24,7 +27,7 @@ from aiida_crystal_dft.io.d3 import D3
 from aiida_crystal_dft.io.f25 import Fort25
 from aiida_crystal_dft.io.f34 import Fort34
 from aiida_crystal_dft.utils.kpoints import construct_kpoints_path, get_explicit_kpoints_path, get_shrink_kpoints_path
-import psutil
+from aiida_crystal_dft.utils.dos import get_dos_projections_atoms
 
 
 EXEC_PATH = "/usr/bin/Pproperties"
@@ -147,6 +150,7 @@ def properties_run_direct(wf_path, input_dict, work_folder=None):
     input_dict['band']['last'] = last_state
     input_dict['dos']['first'] = 1
     input_dict['dos']['last'] = last_state
+    input_dict['dos']['projections_atoms'] = get_dos_projections_atoms(wf.get_atomic_numbers())
 
     d3_content = str(D3(input_dict))
     inp = open(os.path.join(work_folder, 'INPUT'), "w")
@@ -159,7 +163,7 @@ def properties_run_direct(wf_path, input_dict, work_folder=None):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
     )
     try:
-        p.wait(timeout=EXEC_TIMEOUT)
+        p.communicate(timeout=EXEC_TIMEOUT)
     except subprocess.TimeoutExpired:
         kill(p.pid)
         return None, work_folder, 'PROPERTIES killed as too time-consuming'
@@ -174,7 +178,13 @@ def properties_run_direct(wf_path, input_dict, work_folder=None):
         or not os.path.exists(os.path.join(work_folder, 'fort.25')):
         return None, work_folder, 'PROPERTIES missing outputs'
 
-    result = Fort25(os.path.join(work_folder, 'fort.25')).parse()
+    try:
+        result = Fort25(os.path.join(work_folder, 'fort.25')).parse()
+    except AssertionError: # FIXME: how to prevent this
+        return None, work_folder, 'PANIC: PROPERTIES AssertionError'
+    except ParseException: # FIXME: how to prevent this
+        return None, work_folder, 'PANIC: PROPERTIES ParseException'
+
     bands = result.get("BAND", None)
     dos = result.get("DOSS", None)
     if not bands or not dos:
@@ -205,8 +215,11 @@ def properties_run_direct(wf_path, input_dict, work_folder=None):
     bands_data = DataFactory('array.bands')()
     bands_data.set_kpointsdata(k_points)
     if bands['bands_down'] is not None:
-        # sum up and down: FIXME
-        bands_data.set_bands(np.hstack(( (bands['bands_up'] - bands['e_fermi']) * Hartree, (bands['bands_down'] - bands['e_fermi']) * Hartree )))
+        # sum up and down: FIXME: how to prevent this
+        try:
+            bands_data.set_bands(np.hstack(( (bands['bands_up'] - bands['e_fermi']) * Hartree, (bands['bands_down'] - bands['e_fermi']) * Hartree )))
+        except ValueError:
+            return None, work_folder, 'PANIC: cannot sum up and down bands'
     else:
         bands_data.set_bands((bands['bands_up'] - bands['e_fermi']) * Hartree)
 

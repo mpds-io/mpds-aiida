@@ -58,7 +58,7 @@ verdi code setup
 
 Why stub? Because the *computer* and *code* management is delegated to the `yascheduler`, taking care of the on-demand cloud resources management.
 
-The Gaussian basis sets used by CRYSTAL engine should be added to the AiiDA database. We download the entire basis set library from the [CRYSTAL website](http://www.crystal.unito.it/basis-sets.php) and save some selected basis sets as `*.basis` files using the script `scripts/run_get_unito_bsl.py`. Then, in a subfolder with the `*.basis` files, one runs:
+The Gaussian basis sets used by CRYSTAL engine should be added to the AiiDA database. We download the entire basis set library from the [CRYSTAL website](http://www.crystal.unito.it/basis-sets.php) and save some selected basis sets as `*.basis` files using the script `scripts/bs_unito_download.py`. Then, in a subfolder with the `*.basis` files, one runs:
 
 ```shell
 >> verdi data crystal_dft uploadfamily --name=$BASIS_FAMILY
