@@ -2,10 +2,21 @@
 # Distributed under MIT license, see LICENSE file.
 
 import os
+import glob
+import shutil
 
 __version__ = "0.7"
 
-CALC_TPL_DIR = os.path.join(
+TEMPLATE_DIR = os.path.join(os.getenv('HOME'),
+                            '.aiida',
+                            'mpds_aiida')
+os.makedirs(TEMPLATE_DIR, exist_ok=True)
+
+yml_dir = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "calc_templates"
 )
+for f in glob.glob(f'{yml_dir}/*.yml'):
+    yml_file = os.path.basename(f)
+    if not os.path.isfile(os.path.join(TEMPLATE_DIR, yml_file)):
+        shutil.copy(f'{yml_dir}/{yml_file}', TEMPLATE_DIR)

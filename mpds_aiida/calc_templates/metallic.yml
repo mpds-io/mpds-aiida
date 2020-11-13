@@ -43,9 +43,7 @@ parameters:
           TOLDEE: 9
       phonons:
         TEMPERAT: [35, 5.7125, 1000]
-        INTENS:
-          INTRAMAN:
-            INTCPHF: True
+        INTENS: True
       elastic_constants:
         type: ELASTCON
 

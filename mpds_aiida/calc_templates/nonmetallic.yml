@@ -18,7 +18,7 @@ basis_family: MPDSBSL_NEUTRAL
 parameters:
   crystal:
     scf:
-      k_points: [16, 48]
+      k_points: [8, 16]
       dft:
         SPIN: True
         xc: PBE0
@@ -30,15 +30,9 @@ parameters:
         TOLDEE: 9
         BIPOSIZE: 128000000
         EXCHSIZE: 128000000
-        TOLINTEG: [8, 8, 8, 8, 30]
-        FMIXING: 70
-        SMEAR: 0.01
-        NOSHIFT: True
-      fock_mixing: DIISALLK
       post_scf: ['PPAN']
     geometry:
       optimise:
-        hessian: HESSIDEN
         convergence:
           TOLDEE: 9
       phonons:
