@@ -1,7 +1,6 @@
-cluster: yascheduler
-
 codes:
-  - Pcrystal
+  crystal:
+    Pcrystal@yascheduler
 
 options:
   need_phonons: true
@@ -14,8 +13,9 @@ options:
     num_mpiprocs_per_machine: 42
 
 basis_family: MPDSBSL_NEUTRAL
+optimize_structure: optimise
 
-parameters:
+default:
   crystal:
     scf:
       k_points: [16, 48]
@@ -36,17 +36,6 @@ parameters:
         NOSHIFT: True
       fock_mixing: DIISALLK
       post_scf: ['PPAN']
-    geometry:
-      optimise:
-        hessian: HESSIDEN
-        convergence:
-          TOLDEE: 9
-      phonons:
-        TEMPERAT: [35, 5.7125, 1000]
-        INTENS: True
-      elastic_constants:
-        type: ELASTCON
-
   properties:
     band:
       shrink: 8
@@ -55,3 +44,33 @@ parameters:
       k_points: [6, 6]
     dos:
       n_e: 40000
+
+optimise:
+  metadata:
+    label: "Geometry optimization"
+  parameters:
+    crystal:
+      geometry:
+        optimise:
+          hessian: HESSIDEN
+          convergence:
+            TOLDEE: 9
+
+phonons:
+  metadata:
+    label: 'Phonon frequency'
+  parameters:
+    crystal:
+      geometry:
+        phonons:
+          TEMPERAT: [35, 5.7125, 1000]
+          INTENS: True
+
+elastic_constants:
+  metadata:
+    label: 'Elastic constants'
+  parameters:
+    crystal:
+      geometry:
+        elastic_constants:
+          type: ELASTCON

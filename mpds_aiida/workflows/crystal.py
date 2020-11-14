@@ -1,41 +1,50 @@
 """
 The base workflow for AiiDA combining CRYSTAL and MPDS
 """
+import os
+from abc import abstractmethod
 from aiida.engine import WorkChain, if_
-from aiida.orm import Code
 from aiida.common.extendeddicts import AttributeDict
+from aiida.orm.nodes.data.base import to_aiida_type
 from aiida_crystal_dft.utils import get_data_class
 from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
+from .. import TEMPLATE_DIR
 from . import GEOMETRY_LABEL, PHONON_LABEL, ELASTIC_LABEL, PROPERTIES_LABEL
 
 
 class MPDSCrystalWorkChain(WorkChain):
     """ A workchain enclosing all calculations for getting as much data from Crystal runs as we can
     """
-    DEFAULT = {'need_phonons': True,
-               'need_elastic_constants': True,
-               'need_electronic_properties': True}
-
-    CALC_STRINGS = ("optimise", "phonons", "elastic_constants", "electronic_properties")
+    OPTIONS_FILES = {
+        'default': 'production.yml',
+        'metallic': 'metallic.yml',
+        'nonmetallic': 'nonmetallic.yml'
+    }
+    # DEFAULT = {'need_phonons': True,
+    #            'need_elastic_constants': True,
+    #            'need_electronic_properties': True}
+    #
+    # CALC_STRINGS = ("optimise", "phonons", "elastic_constants", "electronic_properties")
 
     @classmethod
     def define(cls, spec):
         super(MPDSCrystalWorkChain, cls).define(spec)
 
-        # define code inputs
-        spec.input('crystal_code', valid_type=Code, required=True)
-        spec.input('properties_code', valid_type=Code, required=False)
-
-        # Add direct structures submitting support: FIXME
-        spec.input('struct_in', valid_type=get_data_class('structure'), required=False)
-
-        # Basis set
-        spec.expose_inputs(BaseCrystalWorkChain, include=['basis_family'])
-
-        # Parameters (include OPTGEOM, FREQCALC and ELASTCON)
-        spec.input('crystal_parameters', valid_type=get_data_class('dict'), required=True)
-        spec.input('properties_parameters', valid_type=get_data_class('dict'), required=False)
-        spec.input('options', valid_type=get_data_class('dict'), required=True, help="Calculation options")
+        # just one optional input with the YML file contents in which all the options are stored
+        # if input is not given, it is taken from the default location
+        # it is possible to give incomplete parameters, they will be completed with defaults
+        spec.input('workchain_options',
+                   valid_type=get_data_class('dict'),
+                   required=False,
+                   help="Calculation options",
+                   serializer=to_aiida_type)
+        spec.input('check_for_bond_type',
+                   valid_type=get_data_class('bool'),
+                   required=False,
+                   default=True,
+                   help="Check if we are to guess bonding type of the structure and choose defaults based on it",
+                   non_db=True,
+                   serializer=to_aiida_type)
 
         # define workchain routine
         spec.outline(cls.init_inputs,
@@ -52,10 +61,9 @@ class MPDSCrystalWorkChain(WorkChain):
                      cls.retrieve_results)
 
         # define outputs
-        spec.output('phonons_parameters', valid_type=get_data_class('dict'), required=False)
-        spec.output('elastic_parameters', valid_type=get_data_class('dict'), required=False)
         spec.expose_outputs(BaseCrystalWorkChain)
         spec.expose_outputs(BasePropertiesWorkChain)
+        spec.output_namespace('aux_parameters', valid_type=get_data_class('dict'), required=False, dynamic=True)
 
     def needs_phonons(self):
         result = self.inputs.options.get_dict().get('need_phonons', self.DEFAULT['need_phonons'])
@@ -76,23 +84,37 @@ class MPDSCrystalWorkChain(WorkChain):
         return result
 
     def init_inputs(self):
+        # check that we actually have parameters, populate with defaults in not
+        # 1) get the structure (label inn metadata.label!)
         self.ctx.inputs = AttributeDict()
-        self.ctx.inputs.crystal = AttributeDict()
-        self.ctx.inputs.properties = AttributeDict()
+        self.ctx.inputs.structure = self.get_geometry()
+        # 2) find the bonding type if needed; if not just use default file
+        if not self.inputs.check_for_bond_type:
+            default_file = os.path.join(TEMPLATE_DIR, self.OPTIONS_FILES['default'])
+            self.logger.info(f"Using {default_file} as default file")
+        else:
+            # check for the bonding type
+            pass
+        # self.ctx.inputs.crystal = AttributeDict()
+        #
+        # # set the crystal workchain inputs; structure is found by get_structure
+        # self.ctx.inputs.crystal.code = self.inputs.crystal_code
+        # self.ctx.inputs.crystal.basis_family = self.inputs.basis_family
+        # self.ctx.inputs.crystal.structure = self.get_geometry()
+        #
+        # # set the properties workchain inputs
+        # self.ctx.inputs.properties = AttributeDict()
+        # self.ctx.inputs.properties.code = self.inputs.get('properties_code', None)
+        # self.ctx.inputs.properties.parameters = self.inputs.get('properties_parameters', None)
+        #
+        # # properties wavefunction input must be set after crystal run
+        # options_dict = self.inputs.options.get_dict()
+        # self.ctx.need_elastic_constants = options_dict.get('need_elastic_constants',
+        #                                                    self.DEFAULT['need_elastic_constants'])
 
-        # set the crystal workchain inputs; structure is found by get_structure
-        self.ctx.inputs.crystal.code = self.inputs.crystal_code
-        self.ctx.inputs.crystal.basis_family = self.inputs.basis_family
-        self.ctx.inputs.crystal.structure = self.get_geometry()
+    # def init_calc_inputs(self, calc_string):
 
-        # set the properties workchain inputs
-        self.ctx.inputs.properties.code = self.inputs.get('properties_code', None)
-        self.ctx.inputs.properties.parameters = self.inputs.get('properties_parameters', None)
 
-        # properties wavefunction input must be set after crystal run
-        options_dict = self.inputs.options.get_dict()
-        self.ctx.need_elastic_constants = options_dict.get('need_elastic_constants',
-                                                           self.DEFAULT['need_elastic_constants'])
 
     def validate_inputs(self):
         crystal_parameters = self.inputs.crystal_parameters.get_dict()
@@ -123,6 +145,10 @@ class MPDSCrystalWorkChain(WorkChain):
             metadata['label'] = '{}: {}'.format(label, calc_string)
         metadata.update(options_dict)
         return metadata
+
+    @abstractmethod
+    def get_geometry(self):
+        raise NotImplemented
 
     def optimize_geometry(self):
         self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.optimise)
