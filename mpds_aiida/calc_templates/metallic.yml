@@ -6,14 +6,15 @@ options:
   need_phonons: true
   need_elastic_constants: true
   need_properties: false
+  recursive_update: true
   try_oxi_if_fails: true
   is_magnetic: true
+  optimize_structure: optimise
   resources:
     num_machines: 42
     num_mpiprocs_per_machine: 42
 
 basis_family: MPDSBSL_NEUTRAL
-optimize_structure: optimise
 
 default:
   crystal:
@@ -45,32 +46,31 @@ default:
     dos:
       n_e: 40000
 
-optimise:
-  metadata:
-    label: "Geometry optimization"
-  parameters:
-    crystal:
-      geometry:
-        optimise:
-          hessian: HESSIDEN
-          convergence:
-            TOLDEE: 9
-
-phonons:
-  metadata:
-    label: 'Phonon frequency'
-  parameters:
-    crystal:
-      geometry:
-        phonons:
-          TEMPERAT: [35, 5.7125, 1000]
-          INTENS: True
-
-elastic_constants:
-  metadata:
-    label: 'Elastic constants'
-  parameters:
-    crystal:
-      geometry:
-        elastic_constants:
-          type: ELASTCON
+calculations:
+  optimise:
+    metadata:
+      label: "Geometry optimization"
+    parameters:
+      crystal:
+        geometry:
+          optimise:
+            hessian: HESSIDEN
+            convergence:
+              TOLDEE: 9
+  phonons:
+    metadata:
+      label: 'Phonon frequency'
+    parameters:
+      crystal:
+        geometry:
+          phonons:
+            TEMPERAT: [35, 5.7125, 1000]
+            INTENS: True
+  elastic_constants:
+    metadata:
+      label: 'Elastic constants'
+    parameters:
+      crystal:
+        geometry:
+          elastic_constants:
+            type: ELASTCON

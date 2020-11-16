@@ -15,6 +15,24 @@ from mpds_aiida import TEMPLATE_DIR
 
 verbatim_basis = namedtuple("basis", field_names="content, all_electron")
 
+
+def guess_metal(ase_obj):
+    """
+    Make an educated guess of the metallic compound character,
+    returns bool
+    """
+    non_metallic_atoms = {
+    'H',                                  'He',
+    'Be',   'B',  'C',  'N',  'O',  'F',  'Ne',
+                  'Si', 'P',  'S',  'Cl', 'Ar',
+                  'Ge', 'As', 'Se', 'Br', 'Kr',
+                        'Sb', 'Te', 'I',  'Xe',
+                              'Po', 'At', 'Rn',
+                                          'Og'
+    }
+    return not any([el for el in set(ase_obj.get_chemical_symbols()) if el in non_metallic_atoms])
+
+
 def get_basis_sets(repo_dir):
     """
     Keeps all available BS in a dict for convenience
@@ -49,7 +67,7 @@ def get_template(template='minimal.yml'):
 
     with open(template_loc) as f:
         calc = yaml.load(f.read(), Loader=yaml.SafeLoader)
-    assert 'parameters' in calc and 'crystal' in calc['parameters'] and 'basis_family' in calc
+    # assert 'parameters' in calc and 'crystal' in calc['parameters'] and 'basis_family' in calc
     return calc
 
 
@@ -69,6 +87,7 @@ def get_input(calc_params_crystal, elements, bs_src, label):
 
 
 supported_arities = {1: 'unary', 2: 'binary', 3: 'ternary', 4: 'quaternary', 5: 'quinary'}
+
 
 def get_mpds_structures(mpds_api, elements, more_query_args=None):
     """

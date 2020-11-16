@@ -28,13 +28,14 @@ from aiida_crystal_dft.io.f25 import Fort25
 from aiida_crystal_dft.io.f34 import Fort34
 from aiida_crystal_dft.utils.kpoints import construct_kpoints_path, get_explicit_kpoints_path, get_shrink_kpoints_path
 from aiida_crystal_dft.utils.dos import get_dos_projections_atoms
+from .common import guess_metal
 
 
 EXEC_PATH = "/usr/bin/Pproperties"
-#EXEC_PATH = "/root/bin/properties" # NB. MAY BE NEEDED AT SOME AIIDA INSTANCES, E.G. AT SCW
+# EXEC_PATH = "/root/bin/properties" # NB. MAY BE NEEDED AT SOME AIIDA INSTANCES, E.G. AT SCW
 EXEC_TIMEOUT = 900 # NB fifteen minutes
 exec_cmd = "/usr/bin/mpirun -np 1 --allow-run-as-root -wd %s %s > %s 2>&1"
-#exec_cmd = "cd %s && %s < INPUT > %s 2>&1" # NB. MAY BE NEEDED AT SOME AIIDA INSTANCES, E.G. AT SCW
+# exec_cmd = "cd %s && %s < INPUT > %s 2>&1" # NB. MAY BE NEEDED AT SOME AIIDA INSTANCES, E.G. AT SCW
 
 config = ConfigParser()
 config.read(CONFIG_FILE)
@@ -74,23 +75,6 @@ def get_band_gap_info(band_stripes):
         return False, direct_gap
     else:
         return indirect_gap, direct_gap
-
-
-def guess_metal(ase_obj):
-    """
-    Make an educated guess of the metallic compound character,
-    returns bool
-    """
-    non_metallic_atoms = {
-    'H',                                  'He',
-    'Be',   'B',  'C',  'N',  'O',  'F',  'Ne',
-                  'Si', 'P',  'S',  'Cl', 'Ar',
-                  'Ge', 'As', 'Se', 'Br', 'Kr',
-                        'Sb', 'Te', 'I',  'Xe',
-                              'Po', 'At', 'Rn',
-                                          'Og'
-    }
-    return not any([el for el in set(ase_obj.get_chemical_symbols()) if el in non_metallic_atoms])
 
 
 def kill(proc_pid):
