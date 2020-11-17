@@ -10,9 +10,6 @@ options:
   try_oxi_if_fails: true
   is_magnetic: true
   optimize_structure: optimise
-  resources:
-    num_machines: 42
-    num_mpiprocs_per_machine: 42
 
 basis_family: MPDSBSL_NEUTRAL
 

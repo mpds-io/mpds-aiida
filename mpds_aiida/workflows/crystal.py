@@ -21,14 +21,8 @@ class MPDSCrystalWorkChain(WorkChain):
         'metallic': 'metallic.yml',
         'nonmetallic': 'nonmetallic.yml'
     }
-    # options related to this workchain (needs_* included!) Other options get sent down the pipe
+    # options related to this workchain (need_* included!) Other options get sent down the pipe
     OPTIONS_WORKCHAIN = ('optimize_structure', 'recursive_update')
-
-    # DEFAULT = {'need_phonons': True,
-    #            'need_elastic_constants': True,
-    #            'need_electronic_properties': True}
-    #
-    # CALC_STRINGS = ("optimise", "phonons", "elastic_constants", "electronic_properties")
 
     @classmethod
     def define(cls, spec):
@@ -47,12 +41,13 @@ class MPDSCrystalWorkChain(WorkChain):
                    valid_type=get_data_class('bool'),
                    required=False,
                    default=lambda: get_data_class('bool')(True),
-                   help="Check if we are to guess bonding type of the structure and choose defaults based on it")
+                   help="Check if we are to guess bonding type of the structure and choose defaults based on it",
+                   serializer=to_aiida_type)
 
         # define workchain routine
         spec.outline(cls.init_inputs,
                      while_(cls.has_calc_to_run)(
-                         if_(cls.needs_)(
+                         if_(cls.is_needed)(
                              cls.run_calc
                          )
                      ),
@@ -112,14 +107,26 @@ class MPDSCrystalWorkChain(WorkChain):
             if idx != 0:
                 calculations.insert(0, calculations.pop(idx))
         self.ctx.calculations = calculations
-        # Pre calc stuff (TODO: all the metadata!)
+        # Pre calc stuff
         self.ctx.metadata = AttributeDict()
         self.ctx.inputs = AttributeDict()
-        self.ctx.labels.update({c: options['calculations'][c]['metadata']['label'] for c in calculations})
         for c in calculations:
+            c_metadata = {k: deepcopy(v) for k, v in options['options'].items()
+                          if ('need_' not in k or c in k) and (k not in self.OPTIONS_WORKCHAIN)}
+            # add label, calculation type, resources if not given
+            c_metadata['label'] = options['calculations'][c]['metadata']['label']
+            # specially for yascheduler users
+            if 'resources' not in c_metadata:
+                c_metadata['resources'] = {'num_machines': 1, 'num_mpiprocs_per_machine': 1}
+            if any([len(options['calculations'][c]['parameters'].keys()) != 1 for c in calculations]):
+                self.report('Calculations must have a definite type!')
+                return self.exit_codes.INPUT_ERROR
+            c_metadata['calc_type'] = list(options['calculations'][c]['parameters'].keys())[0]
+            self.ctx.metadata[c] = c_metadata
             c_input = deepcopy(options['default'])
             recursive_update(c_input, options['calculations'][c]['parameters'])
             self.ctx.inputs[c] = c_input
+        self.ctx.running_calc = -1
 
     def validate_inputs(self, options):
         valid_keys = ('codes', 'options', 'basis_family', 'default', 'calculations')
@@ -147,18 +154,18 @@ class MPDSCrystalWorkChain(WorkChain):
         raise NotImplemented
 
     def has_calc_to_run(self):
-        return NotImplemented
+        self.ctx.running_calc += 1
+        if self.ctx.running_calc == len(self.ctx.calculations):
+            return False
+        return True
 
-    def needs_(self):
-        return NotImplemented
+    def is_needed(self):
+        calculation = self.ctx.calculations[self.ctx.running_calc]
+        is_calc_needed = self.ctx.metadata[calculation].get(f'need_{calculation}', True)
+        if not is_calc_needed:
+            self.report(f'Calculation {calculation} is not needed due to need_* flag; skipping')
+        return is_calc_needed
 
-    # def needs_phonons(self):
-    #     result = self.inputs.options.get_dict().get('need_phonons', self.DEFAULT['need_phonons'])
-    #     self.ctx.need_phonons = result
-    #     if not result:
-    #         self.logger.warning("Skipping phonon frequency calculation")
-    #     return result
-    #
     # def needs_properties_run(self):
     #     if "properties_code" not in self.inputs:
     #         self.logger.warning("No properties code given as input, hence skipping electronic properties calculation")
@@ -171,14 +178,28 @@ class MPDSCrystalWorkChain(WorkChain):
     #     return result
 
     def run_calc(self):
-        return NotImplemented
+        calculation = self.ctx.calculations[self.ctx.running_calc]
+        metadata = self.ctx.metadata[calculation]
+        calc_type = metadata['calc_type']
+        if calc_type not in ('crystal', 'properties'):
+            self.report('Unsupported calculation type in input; exiting!')
+            return self.exit_codes.INPUT_ERROR
+        return self._run_calc_crystal() if calc_type == 'crystal' else self._run_calc_properties()
+
+    def _run_calc_crystal(self):
+        calculation = self.ctx.calculations[self.ctx.running_calc]
+        inputs = BaseCrystalWorkChain.get_builder()
+        # TODO: Add inputs!
+        # noinspection PyTypeChecker
+        crystal_run = self.submit(BaseCrystalWorkChain, **inputs)
+        return self.to_context(**{calculation: crystal_run})
+
+    def _run_calc_properties(self):
+        raise NotImplemented
 
     # def optimize_geometry(self):
     #     self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.optimise)
-    #     self.ctx.inputs.crystal.options = get_data_class('dict')(dict=self.construct_metadata(GEOMETRY_LABEL))
-    #     # noinspection PyTypeChecker
-    #     crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
-    #     return self.to_context(optimise=crystal_run)
+    #     self.ctx.inputs.crystal.options = get_data_class('dict')(dict=self.construct_metadata(GEOMETRY_LABEL)
     #
     # def calculate_phonons(self):
     #     self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
@@ -230,7 +251,7 @@ class MPDSCrystalWorkChain(WorkChain):
         return self.to_context(properties=properties_run)
 
     def retrieve_results(self):
-        """ Expose all outputs of optimized structure and properties calcs
+        """ Expose all outputs of optimized structure and properties calculations
         """
         self.out_many(self.exposed_outputs(self.ctx.optimise, BaseCrystalWorkChain))
         if self.ctx.need_phonons:
@@ -246,5 +267,4 @@ class MPDSCrystalWorkChain(WorkChain):
 def _not(f):
     def wrapped(self):
         return not f(self)
-
     return wrapped
