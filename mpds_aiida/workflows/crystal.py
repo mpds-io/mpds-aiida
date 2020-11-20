@@ -53,11 +53,12 @@ class MPDSCrystalWorkChain(WorkChain):
                      ))
 
         # define outputs
-        spec.expose_outputs(BaseCrystalWorkChain)
+        spec.expose_outputs(BaseCrystalWorkChain, exclude=('output_parameters', ))
         spec.expose_outputs(BasePropertiesWorkChain)
-        spec.output_namespace('aux_parameters', valid_type=get_data_class('dict'), required=False, dynamic=True)
+        spec.output_namespace('output_parameters', valid_type=get_data_class('dict'), required=False, dynamic=True)
         spec.exit_code(410, 'INPUT_ERROR', 'Error in input')
         spec.exit_code(411, 'ERROR_INVALID_CODE', 'Non-existent code is given')
+        spec.exit_code(412, 'ERROR_OPTIMIZATION_FAILED', 'Structure optimization failed!')
 
     def init_inputs(self):
         # check that we actually have parameters, populate with defaults in not
@@ -112,7 +113,7 @@ class MPDSCrystalWorkChain(WorkChain):
             c_metadata['label'] = options['calculations'][c]['metadata']['label']
             # specially for yascheduler users
             if 'resources' not in c_metadata:
-                c_metadata['resources'] = {'num_machines': 1, 'num_mpiprocs_per_machine': 1}
+                c_metadata['resources'] = {'num_machines': 1, 'num_mpiprocs_per_machine': 2}
             if any([len(options['calculations'][c]['parameters'].keys()) != 1 for c in calculations]):
                 self.report('Calculations must have a definite type!')
                 return self.exit_codes.INPUT_ERROR
@@ -126,27 +127,14 @@ class MPDSCrystalWorkChain(WorkChain):
             recursive_update(c_input, options['calculations'][c]['parameters'])
             self.ctx.inputs[c] = c_input
         self.ctx.running_calc = -1
+        self.ctx.running_calc_type = None
+        self.ctx.is_optimization = False
 
     def validate_inputs(self, options):
         valid_keys = ('codes', 'options', 'basis_family', 'default', 'calculations')
         if set(options.keys()) != set(valid_keys):
             self.report('Input validation failed!')
             return self.exit_codes.INPUT_ERROR
-
-    def construct_metadata(self, calc_string):
-        options_dict = self.inputs.options.get_dict()
-        unneeded_keys = [k for k in options_dict if "need_" in k]
-        for k in unneeded_keys:
-            options_dict.pop(k)
-
-        # label and description
-        label = self.inputs.metadata.get('label', '')
-        description = self.inputs.metadata.get('description', '')
-        metadata = {'description': description}
-        if label:
-            metadata['label'] = '{}: {}'.format(label, calc_string)
-        metadata.update(options_dict)
-        return metadata
 
     @abstractmethod
     def get_geometry(self):
@@ -180,8 +168,9 @@ class MPDSCrystalWorkChain(WorkChain):
         calculation = self.ctx.calculations[self.ctx.running_calc]
         calc_type = self.ctx.metadata[calculation].pop('calc_type')
         if calc_type not in ('crystal', 'properties'):
-            self.report('Unsupported calculation type in input; exiting!')
+            self.report(f'{calculation}: Unsupported calculation type {calc_type} in input; exiting!')
             return self.exit_codes.INPUT_ERROR
+        self.ctx.running_calc_type = calc_type
         return self._run_calc_crystal() if calc_type == 'crystal' else self._run_calc_properties()
 
     def _run_calc_crystal(self):
@@ -193,6 +182,7 @@ class MPDSCrystalWorkChain(WorkChain):
         inputs.code = self.ctx.codes['crystal']
         metadata = self.ctx.metadata[calculation]
         optimization = metadata.pop('optimize_structure')
+        self.ctx.is_optimization = optimization
         if optimization is None or optimization:
             self.report(f'{calculation}: Using structure from input')
             inputs.structure = self.ctx.structure
@@ -200,12 +190,12 @@ class MPDSCrystalWorkChain(WorkChain):
             self.report(f'{calculation}: Using optimized structure')
             inputs.structure = self.ctx.optimized_structure
         inputs.basis_family, _ = get_data_class('crystal_dft.basis_family').get_or_create(self.ctx.basis_family)
-        inputs.parameters = get_data_class('dict')(dict=self.ctx.inputs[calculation])
+        inputs.parameters = get_data_class('dict')(dict=self.ctx.inputs[calculation]['crystal'])
         workchain_label = self.inputs.metadata.get('label', 'CRYSTAL calc')
         calc_label = metadata.pop('label') if 'label' in metadata else calculation
 
         if 'oxidation_states' in self.ctx:
-            self.report(f"Using {self.ctx.oxidation_states} in {calculation}")
+            self.report(f"{calculation}: Using oxidation states {self.ctx.oxidation_states} in {calculation}")
             metadata["use_oxidation_states"] = self.ctx.oxidation_states
         inputs.options = get_data_class('dict')(dict=metadata)
         inputs.metadata = {
@@ -220,48 +210,30 @@ class MPDSCrystalWorkChain(WorkChain):
         raise NotImplemented
 
     def check_and_get_results(self):
-        raise NotImplemented
+        calculation = self.ctx.calculations[self.ctx.running_calc]
+        calc = self.ctx.get(calculation)
+        ok_finish = calc.is_finished_ok
+        # check if this was optimization
+        is_optimization = self.ctx.is_optimization
+        if is_optimization:
+            if not ok_finish:
+                return self.exit_codes.ERROR_OPTIMIZATION_FAILED
+            self.out_many(self.exposed_outputs(calc, BaseCrystalWorkChain))
+        if ok_finish:
+            self.out(f'output_parameters.{calculation}', calc.outputs.output_parameters)
+        else:
+            self.report(f'{calculation} has failed, no outputs are exposed')
 
-    # def optimize_geometry(self):
-    #     self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.optimise)
-    #     self.ctx.inputs.crystal.options = get_data_class('dict')(dict=self.construct_metadata(GEOMETRY_LABEL)
+    # @staticmethod
+    # def correctly_finalized(calc_string):
+    #     def wrapped(self):
+    #         assert calc_string in self.CALC_STRINGS
+    #         if not hasattr(self.ctx, calc_string):
+    #             return False
+    #         calc = self.ctx.get(calc_string)
+    #         return calc.is_finished_ok
     #
-    # def calculate_phonons(self):
-    #     self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
-    #     self.ctx.inputs.crystal.parameters = get_data_class('dict')(dict=self.ctx.crystal_parameters.phonons)
-    #     self.ctx.inputs.crystal.options = get_data_class('dict')(
-    #         dict=self.construct_metadata(PHONON_LABEL))
-    #     # noinspection PyTypeChecker
-    #     crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
-    #     return self.to_context(phonons=crystal_run)
-    #
-    # def calculate_elastic_constants(self):
-    #     if self.ctx.need_elastic_constants:
-    #         # run elastic calc with optimised structure
-    #         self.ctx.inputs.crystal.structure = self.ctx.optimise.outputs.output_structure
-    #         options = self.construct_metadata(ELASTIC_LABEL)
-    #         if "oxidation_states" in self.ctx.optimise.outputs:
-    #             options["use_oxidation_states"] = self.ctx.optimise.outputs.oxidation_states.get_dict()
-    #         self.ctx.inputs.crystal.parameters = get_data_class('dict')(
-    #             dict=self.ctx.crystal_parameters.elastic_constants)
-    #         self.ctx.inputs.crystal.options = get_data_class('dict')(dict=options)
-    #         # noinspection PyTypeChecker
-    #         crystal_run = self.submit(BaseCrystalWorkChain, **self.ctx.inputs.crystal)
-    #         return self.to_context(elastic_constants=crystal_run)
-    #
-    #     else:
-    #         self.logger.warning("Skipping elastic constants calculation")
-
-    @staticmethod
-    def correctly_finalized(calc_string):
-        def wrapped(self):
-            assert calc_string in self.CALC_STRINGS
-            if not hasattr(self.ctx, calc_string):
-                return False
-            calc = self.ctx.get(calc_string)
-            return calc.is_finished_ok
-
-        return wrapped
+    #     return wrapped
 
     # def run_properties_calc(self):
     #     self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
@@ -270,16 +242,3 @@ class MPDSCrystalWorkChain(WorkChain):
     #     # noinspection PyTypeChecker
     #     properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
     #     return self.to_context(properties=properties_run)
-
-    # def retrieve_results(self):
-    #     """ Expose all outputs of optimized structure and properties calculations
-    #     """
-    #     self.out_many(self.exposed_outputs(self.ctx.optimise, BaseCrystalWorkChain))
-    #     if self.ctx.need_phonons:
-    #         self.out('phonons_parameters', self.ctx.phonons.outputs.output_parameters)
-    #
-    #     if self.ctx.need_elastic_constants:
-    #         self.out('elastic_parameters', self.ctx.elastic_constants.outputs.output_parameters)
-    #
-    #     if self.ctx.need_electronic_properties:
-    #         self.out_many(self.exposed_outputs(self.ctx.properties, BasePropertiesWorkChain))
