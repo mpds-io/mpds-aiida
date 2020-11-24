@@ -148,7 +148,10 @@ class MPDSCrystalWorkChain(WorkChain):
 
     def is_needed(self):
         calculation = self.ctx.calculations[self.ctx.running_calc]
-        is_calc_needed = self.ctx.metadata[calculation].get(f'need_{calculation}', True)
+        if f'need_{calculation}' in self.ctx.metadata[calculation]:
+            is_calc_needed = self.ctx.metadata[calculation].pop(f'need_{calculation}')
+        else:
+            is_calc_needed = True
         if not is_calc_needed:
             self.report(f'Calculation {calculation} is not needed due to need_* flag; skipping')
         return is_calc_needed
@@ -191,7 +194,7 @@ class MPDSCrystalWorkChain(WorkChain):
             inputs.structure = self.ctx.optimized_structure
         inputs.basis_family, _ = get_data_class('crystal_dft.basis_family').get_or_create(self.ctx.basis_family)
         inputs.parameters = get_data_class('dict')(dict=self.ctx.inputs[calculation]['crystal'])
-        workchain_label = self.inputs.metadata.get('label', 'CRYSTAL calc')
+        workchain_label = self.inputs.metadata.get('label', 'MPDS CRYSTAL workchain')
         calc_label = metadata.pop('label') if 'label' in metadata else calculation
 
         if 'oxidation_states' in self.ctx:
@@ -219,6 +222,7 @@ class MPDSCrystalWorkChain(WorkChain):
             if not ok_finish:
                 return self.exit_codes.ERROR_OPTIMIZATION_FAILED
             self.out_many(self.exposed_outputs(calc, BaseCrystalWorkChain))
+            self.ctx.optimized_structure = calc.outputs.output_structure
         if ok_finish:
             self.out(f'output_parameters.{calculation}', calc.outputs.output_parameters)
         else:
