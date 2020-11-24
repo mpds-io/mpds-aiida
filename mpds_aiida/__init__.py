@@ -5,7 +5,7 @@ import os
 import glob
 import shutil
 
-__version__ = "0.7"
+__version__ = "0.8"
 
 TEMPLATE_DIR = os.path.join(os.getenv('HOME'),
                             '.aiida',
