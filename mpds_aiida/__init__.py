@@ -16,7 +16,8 @@ yml_dir = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "calc_templates"
 )
-for f in glob.glob(f'{yml_dir}/*.yml'):
+
+for f in glob.glob(yml_dir + os.sep + '*.yml'):
     yml_file = os.path.basename(f)
     if not os.path.isfile(os.path.join(TEMPLATE_DIR, yml_file)):
-        shutil.copy(f'{yml_dir}/{yml_file}', TEMPLATE_DIR)
+        shutil.copy(yml_dir + os.sep + yml_file, TEMPLATE_DIR)
