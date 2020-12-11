@@ -92,17 +92,21 @@ class MPDSCrystalWorkChain(WorkChain):
         # put options to context
         self.ctx.codes.update({k: Code.get_from_string(v) for k, v in options['codes'].items()})
         self.ctx.basis_family = options['basis_family']
-        # dealing with calculations
-        calculations = list(options['calculations'].keys())
+        # dealing with calculations (making it priority queue)
+        calculations = dict(zip(options['calculations'].keys(), [10*i for i in range(len(options['calculations']))]))
         if 'optimize_structure' in options['options']:
             optimization = options['options']['optimize_structure']
             if optimization not in calculations:
                 self.report('Optimization procedure not in calculations list!')
                 return self.exit_codes.INPUT_ERROR
-            idx = calculations.index(optimization)
-            if idx != 0:
-                calculations.insert(0, calculations.pop(idx))
-        self.ctx.calculations = calculations
+            # optimization has highest priority
+            calculations[optimization] = 1
+        # deal with after tag
+        for c in calculations:
+            after = options['calculations'][c]['metadata'].get('after', None)
+            if after is not None:
+                calculations[c] = calculations[after] + 1
+        self.ctx.calculations = sorted(calculations, key=calculations.get)
         # Pre calc stuff
         self.ctx.metadata = AttributeDict()
         self.ctx.inputs = AttributeDict()
@@ -111,6 +115,9 @@ class MPDSCrystalWorkChain(WorkChain):
                           if ('need_' not in k or c in k) and (k not in self.OPTIONS_WORKCHAIN)}
             # add label, calculation type, resources if not given
             c_metadata['label'] = options['calculations'][c]['metadata']['label']
+            c_metadata['after'] = {"calc": options['calculations'][c]['metadata'].get('after', None),
+                                   "finished_ok": options['calculations'][c]['metadata'].get('finished_ok', None),
+                                   "exit_status": options['calculations'][c]['metadata'].get('exit_status', None)}
             # specially for yascheduler users
             if 'resources' not in c_metadata:
                 c_metadata['resources'] = {'num_machines': 1, 'num_mpiprocs_per_machine': 2}
@@ -148,12 +155,29 @@ class MPDSCrystalWorkChain(WorkChain):
 
     def is_needed(self):
         calculation = self.ctx.calculations[self.ctx.running_calc]
+        is_calc_needed = True
         if f'need_{calculation}' in self.ctx.metadata[calculation]:
             is_calc_needed = self.ctx.metadata[calculation].pop(f'need_{calculation}')
-        else:
-            is_calc_needed = True
         if not is_calc_needed:
             self.report(f'Calculation {calculation} is not needed due to need_* flag; skipping')
+        # check after tag
+        after = self.ctx.metadata[calculation].pop('after')
+        if after['finished_ok'] is not None:
+            calc = self.ctx.get(after['calc'])
+            ok_finish = calc.is_finished_ok
+            if after['finished_ok'] and ok_finish:
+                self.report(f"Calculation {after['calc']} is finished ok, starting {calculation}")
+                return True
+            if not after['finished_ok']:
+                # checking exit_status
+                exit_status = calc.called[-1].exit_status
+                if after['exit_status'] is not None and exit_status == after['exit_status']:
+                    self.report(f"Calculation {after['calc']} finished with exit status {exit_status}, "
+                                f"starting {calculation}")
+                    return True
+            # in any other case calculation is not needed
+            self.report(f'Calculation {calculation} is not needed due to after tag; skipping')
+            is_calc_needed = False
         return is_calc_needed
 
     # def needs_properties_run(self):
@@ -184,6 +208,7 @@ class MPDSCrystalWorkChain(WorkChain):
             return self.exit_codes.ERROR_INVALID_CODE
         inputs.code = self.ctx.codes['crystal']
         metadata = self.ctx.metadata[calculation]
+        # metadata.pop('after')
         optimization = metadata.pop('optimize_structure')
         self.ctx.is_optimization = optimization
         if optimization is None or optimization:
