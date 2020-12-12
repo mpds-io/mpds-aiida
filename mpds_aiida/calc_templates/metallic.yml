@@ -31,7 +31,6 @@ default:
         TOLINTEG: [8, 8, 8, 8, 30]
         FMIXING: 70
         SMEAR: 0.01
-        NOSHIFT: True
       fock_mixing: DIISALLK
       post_scf: ['PPAN']
   properties:
