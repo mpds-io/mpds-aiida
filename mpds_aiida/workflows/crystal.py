@@ -16,7 +16,7 @@ class MPDSCrystalWorkChain(WorkChain):
     """ A workchain enclosing all calculations for getting as much data from Crystal runs as we can
     """
     OPTIONS_FILES = {
-        'default': 'production.yml',
+        'default': 'nonmetallic.yml',
         'metallic': 'metallic.yml',
         'nonmetallic': 'nonmetallic.yml'
     }
@@ -61,11 +61,12 @@ class MPDSCrystalWorkChain(WorkChain):
         spec.exit_code(412, 'ERROR_OPTIMIZATION_FAILED', 'Structure optimization failed!')
 
     def init_inputs(self):
-        # check that we actually have parameters, populate with defaults in not
+        # check that we actually have the parameters, populate with the defaults if not
         # 1) get the structure (label in metadata.label!)
         self.ctx.codes = AttributeDict()
         self.ctx.structure = self.get_geometry()
-        # 2) find the bonding type if needed; if not just use default file
+
+        # 2) find the bonding type if needed; if not, just use the default options
         if not self.inputs.check_for_bond_type:
             default_file = self.OPTIONS_FILES['default']
             self.report(f"Using {default_file} as default file")
@@ -79,6 +80,7 @@ class MPDSCrystalWorkChain(WorkChain):
                 default_file = self.OPTIONS_FILES['nonmetallic']
                 self.report(f"Guessed nonmetallic bonding; using {default_file} as default file")
         options = get_template(default_file)
+
         # update with workchain options, if present (recursively if needed)
         changed_options = self.inputs.workchain_options.get_dict()
         needs_recursive_update = changed_options['options'].get('recursive_update',
@@ -89,9 +91,11 @@ class MPDSCrystalWorkChain(WorkChain):
             else:
                 options.update(changed_options)
         self.validate_inputs(options)
+
         # put options to context
         self.ctx.codes.update({k: Code.get_from_string(v) for k, v in options['codes'].items()})
         self.ctx.basis_family = options['basis_family']
+
         # dealing with calculations (making it priority queue)
         calculations = dict(zip(options['calculations'].keys(), [10*i for i in range(len(options['calculations']))]))
         if 'optimize_structure' in options['options']:
@@ -101,23 +105,27 @@ class MPDSCrystalWorkChain(WorkChain):
                 return self.exit_codes.INPUT_ERROR
             # optimization has highest priority
             calculations[optimization] = 1
+
         # deal with after tag
         for c in calculations:
             after = options['calculations'][c]['metadata'].get('after', None)
             if after is not None:
                 calculations[c] = calculations[after] + 1
         self.ctx.calculations = sorted(calculations, key=calculations.get)
+
         # Pre calc stuff
         self.ctx.metadata = AttributeDict()
         self.ctx.inputs = AttributeDict()
         for c in calculations:
             c_metadata = {k: deepcopy(v) for k, v in options['options'].items()
                           if ('need_' not in k or c in k) and (k not in self.OPTIONS_WORKCHAIN)}
+
             # add label, calculation type, resources if not given
             c_metadata['label'] = options['calculations'][c]['metadata']['label']
             c_metadata['after'] = {"calc": options['calculations'][c]['metadata'].get('after', None),
                                    "finished_ok": options['calculations'][c]['metadata'].get('finished_ok', None),
                                    "exit_status": options['calculations'][c]['metadata'].get('exit_status', None)}
+
             # specially for yascheduler users
             if 'resources' not in c_metadata:
                 c_metadata['resources'] = {'num_machines': 1, 'num_mpiprocs_per_machine': 2}
@@ -133,6 +141,7 @@ class MPDSCrystalWorkChain(WorkChain):
             c_input = deepcopy(options['default'])
             recursive_update(c_input, options['calculations'][c]['parameters'])
             self.ctx.inputs[c] = c_input
+
         self.ctx.running_calc = -1
         self.ctx.running_calc_type = None
         self.ctx.is_optimization = False
@@ -241,6 +250,7 @@ class MPDSCrystalWorkChain(WorkChain):
         calculation = self.ctx.calculations[self.ctx.running_calc]
         calc = self.ctx.get(calculation)
         ok_finish = calc.is_finished_ok
+
         # check if this was optimization
         is_optimization = self.ctx.is_optimization
         if is_optimization:

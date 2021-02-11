@@ -14,7 +14,7 @@ from mpds_aiida.properties import properties_run_direct, properties_export
 
 
 load_profile()
-calc_setup = get_template('production.yml')
+calc_setup = get_template('nonmetallic.yml')
 
 folder = '/tmp/_props'
 if os.path.exists(folder):
