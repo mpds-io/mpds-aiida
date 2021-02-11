@@ -15,6 +15,4 @@ class AiidaStructureWorkChain(MPDSCrystalWorkChain):
         spec.input('structure', valid_type=get_data_class('structure'), required=True)
 
     def get_geometry(self):
-        """ Getting geometry from MPDS database
-        """
         return self.inputs.structure

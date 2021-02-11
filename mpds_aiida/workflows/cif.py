@@ -20,8 +20,6 @@ class CIFStructureWorkChain(MPDSCrystalWorkChain):
         spec.exit_code(591, 'ERROR_PARSING_CIF', message='Error in getting ASE object form CIF file')
 
     def get_geometry(self):
-        """ Getting geometry from MPDS database
-        """
         structure = open(self.inputs.structure).read()
         assert detect_format(structure) == 'cif'
         ase_obj, error = cif_to_ase(structure)

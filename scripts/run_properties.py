@@ -18,7 +18,7 @@ calc_setup = get_template('production.yml')
 
 folder = '/tmp/_props'
 if os.path.exists(folder):
-    assert not os.listdir(folder)
+    assert not os.listdir(folder), "Folder %s must be empty" % folder
 else:
     os.makedirs(folder)
 

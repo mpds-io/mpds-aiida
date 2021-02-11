@@ -1,5 +1,4 @@
 #  Copyright (c) Andrey Sobolev, 2020. Distributed under MIT license
-
 """
 The MPDS workflow for AiiDA that gets structure with MPDS query
 """
