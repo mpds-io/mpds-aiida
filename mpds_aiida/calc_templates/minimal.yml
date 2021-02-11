@@ -1,19 +1,15 @@
-cluster: yascheduler
-
 codes:
-  - Pcrystal
+  crystal:
+    Pcrystal@yascheduler
 
 options:
   need_phonons: false
   need_elastic_constants: false
   need_properties: false
-  resources:
-    num_machines: 42
-    num_mpiprocs_per_machine: 42
 
 basis_family: MPDSBSL_NEUTRAL
 
-parameters:
+default:
   crystal:
     scf:
       k_points: [6, 6]

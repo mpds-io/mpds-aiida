@@ -61,7 +61,7 @@ Why stub? Because the *computer* and *code* management is delegated to the `yasc
 The Gaussian basis sets used by CRYSTAL engine should be added to the AiiDA database. We download the entire basis set library from the [CRYSTAL website](http://www.crystal.unito.it/basis-sets.php) and save some selected basis sets as `*.basis` files using the script `scripts/bs_unito_download.py`. Then, in a subfolder with the `*.basis` files, one runs:
 
 ```shell
->> verdi data crystal_dft uploadfamily --name=$BASIS_FAMILY
+verdi data crystal_dft uploadfamily --name=$BASIS_FAMILY
 ```
 
 or, to add the internal basis sets predefined in CRYSTAL:
