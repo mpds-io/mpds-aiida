@@ -15,16 +15,21 @@ class CIFStructureWorkChain(MPDSCrystalWorkChain):
         super(CIFStructureWorkChain, cls).define(spec)
         # one required input: CIF input file name
         spec.input('structure', valid_type=get_data_class('str'), required=True)
-        # 59X - CIF related errors
+        # CIF related errors
+        spec.exit_code(589, 'ERROR_NOT_A_CIF', message='Structure is not a CIF')
         spec.exit_code(590, 'ERROR_DISORDERED_STRUCTURE', message='Structure is disordered')
         spec.exit_code(591, 'ERROR_PARSING_CIF', message='Error in getting ASE object form CIF file')
 
     def get_geometry(self):
         structure = open(self.inputs.structure).read()
-        assert detect_format(structure) == 'cif'
+
+        if detect_format(structure) != 'cif':
+            return self.exit_codes.ERROR_NOT_A_CIF
+
         ase_obj, error = cif_to_ase(structure)
         if error:
             return self.exit_codes.ERROR_PARSING_CIF
         if 'disordered' in ase_obj.info:
             return self.exit_codes.ERROR_DISORDERED_STRUCTURE
+
         return get_data_class('structure')(ase=ase_obj)

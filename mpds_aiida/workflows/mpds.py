@@ -19,7 +19,7 @@ class MPDSStructureWorkChain(MPDSCrystalWorkChain):
         super(MPDSStructureWorkChain, cls).define(spec)
         # one required input: MPDS phase id
         spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
-        # 50X - errors related to MPDS retrieval
+        # errors related to MPDS retrieval
         spec.exit_code(501, 'ERROR_NO_MPDS_API_KEY', message='MPDS API key not set')
         spec.exit_code(502, 'ERROR_API_ERROR', message='MPDS API Error')
         spec.exit_code(503, 'ERROR_NO_HITS', message='Request returned nothing')

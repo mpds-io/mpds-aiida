@@ -66,6 +66,9 @@ class MPDSCrystalWorkChain(WorkChain):
         self.ctx.codes = AttributeDict()
         self.ctx.structure = self.get_geometry()
 
+        if isinstance(self.ctx.structure, int):
+            return self.ctx.structure # FIXME
+
         # 2) find the bonding type if needed; if not, just use the default options
         if not self.inputs.check_for_bond_type:
             default_file = self.OPTIONS_FILES['default']
