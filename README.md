@@ -102,7 +102,8 @@ Note: this repo is subject to change and presents an ongoing work in progress.
 
 ## Licensing
 
-Code: [MIT](https://en.wikipedia.org/wiki/MIT_License)
+This code: [MIT](https://en.wikipedia.org/wiki/MIT_License)
+CRYSTAL engine: [commercial](https://www.crystal.unito.it)
 
 The resulting data are available at the [MPDS platform](https://mpds.io/search/ab%20initio%20calculations), according to the CC BY 4.0 license.
 
