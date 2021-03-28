@@ -28,6 +28,7 @@ default:
         TOLDEE: 9
         BIPOSIZE: 128000000
         EXCHSIZE: 128000000
+        MAXCYCLE: 75
       post_scf: ['PPAN']
   properties:
     band:
@@ -48,6 +49,7 @@ calculations:
           optimise:
             convergence:
               TOLDEE: 9
+              MAXCYCLE: 50
   phonons:
     metadata:
       label: 'Phonon frequency'

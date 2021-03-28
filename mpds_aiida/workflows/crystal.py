@@ -5,6 +5,7 @@ from copy import deepcopy
 from abc import abstractmethod
 from aiida.engine import WorkChain, if_, while_
 from aiida.common.extendeddicts import AttributeDict
+from aiida.engine import ExitCode
 from aiida.orm import Code
 from aiida.orm.nodes.data.base import to_aiida_type
 from aiida_crystal_dft.utils import get_data_class, recursive_update
@@ -66,8 +67,8 @@ class MPDSCrystalWorkChain(WorkChain):
         self.ctx.codes = AttributeDict()
         self.ctx.structure = self.get_geometry()
 
-        if isinstance(self.ctx.structure, int):
-            return self.ctx.structure # FIXME
+        if isinstance(self.ctx.structure, ExitCode): # FIXME
+            return self.ctx.structure
 
         # 2) find the bonding type if needed; if not, just use the default options
         if not self.inputs.check_for_bond_type:
@@ -86,7 +87,7 @@ class MPDSCrystalWorkChain(WorkChain):
 
         # update with workchain options, if present (recursively if needed)
         changed_options = self.inputs.workchain_options.get_dict()
-        needs_recursive_update = changed_options['options'].get('recursive_update',
+        needs_recursive_update = changed_options.get('options', {}).get('recursive_update',
                                                                 options['options'].get('recursive_update', True))
         if changed_options:
             if needs_recursive_update:

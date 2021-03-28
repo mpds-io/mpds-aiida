@@ -31,6 +31,7 @@ default:
         TOLINTEG: [8, 8, 8, 8, 30]
         FMIXING: 70
         SMEAR: 0.01
+        MAXCYCLE: 75
       fock_mixing: DIISALLK
       post_scf: ['PPAN']
   properties:
@@ -53,6 +54,7 @@ calculations:
             hessian: HESSIDEN
             convergence:
               TOLDEE: 9
+              MAXCYCLE: 50
   phonons:
     metadata:
       label: 'Phonon frequency'
