@@ -10,7 +10,7 @@ using the MPDS data platform, AiiDA workflows, and CRYSTAL simulation engine.
 
 - get accurate encyclopedic, reference, and benchmarking scientific data
 - get vast systematic training data for machine learning
-- use the cheap commodity cloud environment (_not_ the HPC cluster)
+- use the cheap commodity cloud environment (_not_ necessarily the HPC cluster)
 - ensure provenance tracking and reproducibility of simulations with AiiDA
 
 
