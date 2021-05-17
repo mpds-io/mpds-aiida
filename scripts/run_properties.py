@@ -51,7 +51,7 @@ f.close()
 
 print("Writing e_props.png")
 
-_, (ax0, ax1) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [3, 1]}, figsize=(10, 8))
+fig, (ax0, ax1) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [3, 1]}, figsize=(10, 8))
 x = np.arange(bands.get_array('kpoints').shape[0])
 ax0.set_xlim(0, len(x) - 1)
 ax0.set_ylim(-10, 20)
@@ -63,6 +63,7 @@ ax1.set_xlim(0, 2000)
 ax1.set_ylim(-10, 20)
 ax1.plot(dos['dos_up'].T, (dos['e'] - dos['e_fermi']))
 
+fig.suptitle(wf.get_ase().get_chemical_formula(empirical=True))
 plt.margins(0.2)
 plt.subplots_adjust(bottom=0.15)
 plt.savefig('e_props.png', dpi=250)

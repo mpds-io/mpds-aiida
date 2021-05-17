@@ -44,10 +44,11 @@ f34_input = Fort34()
 
 
 def is_conductor(band_stripes):
+    ZERO_TOL = 0.01
     for s in band_stripes:
         top, bottom = max(s), min(s)
-        if bottom < 0 and top > 0: return True
-        elif bottom > 0: break
+        if bottom < -ZERO_TOL and top > ZERO_TOL: return True
+        elif bottom > ZERO_TOL: break
     return False
 
 
@@ -222,14 +223,19 @@ def properties_export(bands_data, dos_data, ase_struct):
     else:
         indirect_gap, direct_gap = get_band_gap_info(stripes)
 
-    if (direct_gap and direct_gap > 50) or (indirect_gap and indirect_gap > 50):
+    if (direct_gap and direct_gap > 20) or (indirect_gap and indirect_gap > 20):
         return None, '%s: UNPHYSICAL BAND GAP: %2.2f / %2.2f' % (ase_struct.get_chemical_formula(), direct_gap, indirect_gap)
 
     if (direct_gap and direct_gap > 15) or (indirect_gap and indirect_gap > 15):
         warnings.warn('%s: SUSPICION FOR UNPHYSICAL BAND GAP: %2.2f / %2.2f' % (ase_struct.get_chemical_formula(), direct_gap, indirect_gap))
 
-    if guess_metal(ase_struct) and (direct_gap or indirect_gap):
+    expected_metal = guess_metal(ase_struct)
+
+    if expected_metal and (direct_gap or indirect_gap):
         warnings.warn('%s: SUSPICION FOR METAL WITH BAND GAPS: %2.2f / %2.2f' % (ase_struct.get_chemical_formula(), direct_gap, indirect_gap))
+
+    if not expected_metal and not direct_gap and not indirect_gap:
+        warnings.warn('%s: SUSPICION FOR NON-METAL WITHOUT BAND GAPS' % ase_struct.get_chemical_formula())
 
     # export only the range of the interest
     E_MIN, E_MAX = -10, 20
@@ -248,6 +254,7 @@ def properties_export(bands_data, dos_data, ase_struct):
         # dos values
         'dos': np.round(np.array(dos), 3).tolist(),
         'levels': np.round(dos_energies, 3).tolist(),
+        'e_fermi': dos_data['e_fermi'],
 
         # bands values
         'k_points': bands_data.get_array('kpoints').tolist(),
