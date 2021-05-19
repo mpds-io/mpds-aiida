@@ -37,6 +37,8 @@ EXEC_TIMEOUT = 900 # NB fifteen minutes
 exec_cmd = "/usr/bin/mpirun -np 1 --allow-run-as-root -wd %s %s > %s 2>&1"
 # exec_cmd = "cd %s && %s < INPUT > %s 2>&1" # NB. MAY BE NEEDED AT SOME AIIDA INSTANCES, E.G. AT SCW
 
+dos_colors = ['green', 'red', 'blue', 'orange', 'purple', 'gray'] # max. quinaries + total
+
 config = ConfigParser()
 config.read(CONFIG_FILE)
 
@@ -91,6 +93,17 @@ def get_avg_charges(ase_obj):
         at_type_chgs.setdefault(atom.symbol, []).append(atom.charge)
 
     if sum([sum(at_type_chgs[at_type]) for at_type in at_type_chgs]) == 0.0:
+        return None
+
+    return {at_type: np.average(at_type_chgs[at_type]) for at_type in at_type_chgs}
+
+
+def get_avg_magmoms(ase_obj):
+    at_type_chgs = {}
+    for atom in ase_obj:
+        at_type_chgs.setdefault(atom.symbol, []).append(atom.magmom)
+
+    if abs(sum([sum(at_type_chgs[at_type]) for at_type in at_type_chgs])) < 0.05: # TODO
         return None
 
     return {at_type: np.average(at_type_chgs[at_type]) for at_type in at_type_chgs}

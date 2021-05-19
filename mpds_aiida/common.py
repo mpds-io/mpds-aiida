@@ -201,6 +201,32 @@ def get_aiida_uuid(path_string):
     return False
 
 
+def formula_to_latex(given_string):
+    sub, output = False, ''
+    for token in given_string:
+        if token.isdigit() or token == '.':
+            if not sub:
+                output += '_{'
+                sub = True
+        else:
+            if sub:
+                output += '}'
+                sub = False
+        output += token
+    if sub:
+        output += '}'
+    return '$' + output + '$'
+
+
+def fix_label_names(labels):
+    count = 1
+    for n in range(len(labels)):
+        if ',' in labels[n]:
+            labels[n] = '$A_{%s}$' % count
+            count += 1
+    return labels
+
+
 ARCHIVE_README = "\r\n".join("""In-house MPDS / PAULING FILE ab initio calculations data
 (c) by Sobolev, Civalleri, Maschio, Erba, Dovesi, Villars, Blokhin
 
