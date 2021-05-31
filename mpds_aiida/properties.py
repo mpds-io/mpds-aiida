@@ -109,7 +109,7 @@ def get_avg_magmoms(ase_obj):
     return {at_type: np.average(at_type_chgs[at_type]) for at_type in at_type_chgs}
 
 
-def properties_run_direct(wf_path, input_dict, work_folder=None):
+def properties_run_direct(wf_path, input_dict, work_folder=None, timeout=None):
     """
     This procedure runs properties
     outside of the AiiDA graph and scheduler,
@@ -161,7 +161,7 @@ def properties_run_direct(wf_path, input_dict, work_folder=None):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
     )
     try:
-        p.communicate(timeout=EXEC_TIMEOUT)
+        p.communicate(timeout=timeout or EXEC_TIMEOUT)
     except subprocess.TimeoutExpired:
         kill(p.pid)
         return None, work_folder, 'PROPERTIES killed as too time-consuming'
