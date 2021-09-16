@@ -2,8 +2,8 @@
 
 #================== GENERAL ==================
 
-PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v13.1/postgresql-13.1.tar.gz # NB KEEP UPDATED
-PG_VERSION="13.1" # NB KEEP UPDATED
+PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v13.4/postgresql-13.4.tar.gz # NB KEEP UPDATED
+PG_VERSION="13.4" # NB KEEP UPDATED
 
 SETTINGS=(
 postgresql.conf
