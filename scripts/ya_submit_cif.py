@@ -35,7 +35,11 @@ yaconfig = ConfigParser()
 yaconfig.read(CONFIG_FILE)
 yac = Yascheduler(yaconfig)
 
-calc_setup = get_template()
+try: tpl = sys.argv[3]
+except: tpl = 'minimal.yml'
+print('template is %s' % tpl)
+
+calc_setup = get_template(tpl)
 bs_repo = get_basis_sets(calc_setup['basis_family'])
 
 #bs_repo_tzvp = get_basis_sets('./tzvp_RE')
@@ -45,7 +49,7 @@ bs_repo = get_basis_sets(calc_setup['basis_family'])
 elements = list(set(ase_obj.get_chemical_symbols()))
 f34_input = Fort34([bs_repo[el] for el in elements])
 struct_input = str(f34_input.from_ase(ase_obj))
-setup_input = get_input(calc_setup['parameters']['crystal'], elements, bs_repo, label)
+setup_input = str(get_input(calc_setup['default']['crystal'], elements, bs_repo, label))
 
 result = yac.queue_submit_task(label, dict(structure=struct_input, input=setup_input))
 print(label)

@@ -59,7 +59,7 @@ for elem_pair in product(ela, elb):
 
         f34_input = Fort34([bs_repo[el] for el in elem_pair])
         struct_input = f34_input.from_ase(target_obj)
-        setup_input = get_input(calc_setup['parameters']['crystal'], elem_pair, bs_repo, target_obj.info['phase'])
+        setup_input = get_input(calc_setup['default']['crystal'], elem_pair, bs_repo, target_obj.info['phase'])
         struct_input = str(struct_input)
         setup_input = str(setup_input)
 
