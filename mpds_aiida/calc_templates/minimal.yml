@@ -16,13 +16,13 @@ default:
       dft:
         xc: ['PBE', 'PBE']
       numerical:
-        TOLDEE: 8
+        TOLDEE: 7
       post_scf: ['PPAN']
     geometry:
       optimise:
         type: CELLONLY
         convergence:
-          TOLDEE: 8
+          TOLDEE: 7
 
   properties:
     band:
