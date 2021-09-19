@@ -45,7 +45,7 @@ def get_basis_sets(repo_dir):
             continue
 
         el = filename.split('.')[0]
-        assert el in chemical_symbols
+        assert el in chemical_symbols, "Unexpected basis set file %s" % filename
         with open(repo_dir + os.sep + filename, 'r') as f:
             bs_str = f.read().strip()
 

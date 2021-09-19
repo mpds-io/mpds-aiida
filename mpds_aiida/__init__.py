@@ -7,9 +7,8 @@ import shutil
 
 __version__ = "0.8"
 
-TEMPLATE_DIR = os.path.join(os.getenv('HOME'),
-                            '.aiida',
-                            'mpds_aiida')
+TEMPLATE_DIR = os.path.join(os.getenv('HOME'), '.aiida', 'mpds_aiida') # Path ~/.aiida is expected
+
 os.makedirs(TEMPLATE_DIR, exist_ok=True)
 
 yml_dir = os.path.join(
