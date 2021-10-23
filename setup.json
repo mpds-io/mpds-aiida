@@ -15,7 +15,7 @@
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Scientific/Engineering :: Physics",
-        "Topic :: Scientific/Engineering :: Information Analysis"
+        "Topic :: Scientific/Engineering :: Information Analysis",
         "Framework :: AiiDA"
     ],
     "entry_points": {
