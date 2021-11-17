@@ -2,13 +2,13 @@
 
 #================== GENERAL ==================
 
-PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v13.4/postgresql-13.4.tar.gz # NB KEEP UPDATED
-PG_VERSION="13.4" # NB KEEP UPDATED
+PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v14.0/postgresql-14.0.tar.gz # NB KEEP UPDATED
+PG_VERSION="14.0" # NB KEEP UPDATED
 
 SETTINGS=(
 postgresql.conf
 supervisord.conf
-sysctl.conf
+#sysctl.conf
 )
 
 for ((i=0; i<${#SETTINGS[@]}; i++)); do
@@ -58,7 +58,21 @@ cp $(dirname $0)/postgresql.conf /data/pg/db/
 #================== GENERAL#2 ==================
 
 cp $(dirname $0)/supervisord.conf /etc/supervisor/
-cat $(dirname $0)/sysctl.conf >> /etc/sysctl.conf
+#cat $(dirname $0)/sysctl.conf >> /etc/sysctl.conf
+
+#================== AiiDA ==================
+
+pip install git+https://github.com/tilde-lab/aiida-crystal-dft
+pip install git+https://github.com/tilde-lab/yascheduler
+pip install git+https://github.com/mpds-io/mpds-ml-labs
+mkdir /data/mpds-aiida
+git clone https://github.com/mpds-io/mpds-aiida /data/mpds-aiida
+pip install /data/mpds-aiida/
+cd /data/mpds-aiida/
+python scripts/bs_unito_download.py
+
+cat /dev/zero | ssh-keygen -q -N ""
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 
 shutdown -r now
 systemctl reboot # if previous fails
