@@ -11,7 +11,7 @@ options:
   is_magnetic: true
   optimize_structure: optimise
 
-basis_family: MPDSBSL_NEUTRAL
+basis_family: MPDSBSL_NEUTRAL_6TH
 
 default:
   crystal:

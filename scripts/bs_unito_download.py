@@ -13,19 +13,8 @@ from aiida_crystal_dft.io.basis import BasisFile
 from pyparsing import ParseException
 
 
-FOLDER = 'MPDSBSL_NEUTRAL' # NB used as *basis_family* in production template
-CACHE_FILE = 'bs_library.pkl'
-
-our_opinionated_choice = {
-'Bi': 'Bi_ECP60MFD_s4411p411d411_Heifets_2013',
-'Ba': 'Ba_HAYWSC-311(1d)G_piskunov_2004',
-'Pb': 'Pb_HAYWLC-211(1d)G_piskunov_2004',
-'Au': 'Au_weihrich_2006',
-'Cs': 'Cs_SC_HAYWSC-31(1d)G_baranek_2013_CsTaO3', # NB not the best choice
-'Tl': 'Tl_HAYWLC-3131d31G_Bachhuber_2011',
-'Ta': 'Ta_ECP60MDF-31(51df)G_baranek_2013_RbTaO3', # NB not the best choice
-'Pt': 'Pt_doll_2004'
-}
+FOLDER = 'MPDSBSL_NEUTRAL_6TH' # NB used as *basis_family* in production template
+CACHE_FILE = 'bs_library_2021.pkl'
 
 saved = set()
 
@@ -152,13 +141,4 @@ if __name__ == "__main__":
                 save(el, candidates[title])
 
     unsaved = set(bs_library.keys()) - saved
-    for el in unsaved:
-
-        print(el, 'selecting from', [item['title'] for item in bs_library[el]])
-
-        for item in bs_library[el]:
-            if item['title'] == our_opinionated_choice.get(el):
-                save(el, item['data'])
-
-                print('Saved %s' % item['title'])
-                break
+    assert not unsaved
