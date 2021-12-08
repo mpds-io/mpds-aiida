@@ -2,8 +2,8 @@
 
 #================== GENERAL ==================
 
-PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v14.0/postgresql-14.0.tar.gz # NB KEEP UPDATED
-PG_VERSION="14.0" # NB KEEP UPDATED
+PG_VERSION="14.1" # NB subject to update
+PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v$PG_VERSION/postgresql-$PG_VERSION.tar.gz
 
 SETTINGS=(
 postgresql.conf
@@ -68,6 +68,7 @@ pip install git+https://github.com/mpds-io/mpds-ml-labs
 mkdir /data/mpds-aiida
 git clone https://github.com/mpds-io/mpds-aiida /data/mpds-aiida
 pip install /data/mpds-aiida/
+reentry scan
 cd /data/mpds-aiida/
 python scripts/bs_unito_download.py
 
