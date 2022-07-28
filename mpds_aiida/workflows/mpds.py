@@ -6,6 +6,7 @@ import os
 import time
 import random
 import numpy as np
+from httplib2.error import ServerNotFoundError
 
 from aiida_crystal_dft.utils import get_data_class
 from mpds_client import MPDSDataRetrieval, APIError
@@ -23,6 +24,7 @@ class MPDSStructureWorkChain(MPDSCrystalWorkChain):
         spec.exit_code(501, 'ERROR_NO_MPDS_API_KEY', message='MPDS API key not set')
         spec.exit_code(502, 'ERROR_API_ERROR', message='MPDS API Error')
         spec.exit_code(503, 'ERROR_NO_HITS', message='Request returned nothing')
+        spec.exit_code(504, 'ERROR_SERVER_NOT_FOUND', message='MPDS server not found')
 
     def get_geometry(self):
         """ Getting geometry from MPDS database
@@ -60,6 +62,9 @@ class MPDSStructureWorkChain(MPDSCrystalWorkChain):
                 self.report(f'MPDS API error: {str(ex)}')
                 self.logger.error(f'MPDS API error: {str(ex)}')
                 return self.exit_codes.ERROR_API_ERROR
+        except ServerNotFoundError as ex:
+            self.report(f'MPDS API error: {str(ex)}')
+            return self.exit_codes.ERROR_SERVER_NOT_FOUND
 
         structs = [client.compile_crystal(line, flavor='ase') for line in answer]
         structs = list(filter(None, structs))
