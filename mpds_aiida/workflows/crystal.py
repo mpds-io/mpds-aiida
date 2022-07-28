@@ -153,6 +153,8 @@ class MPDSCrystalWorkChain(WorkChain):
                 for err, err_input in options['calculations'][c]['on_error'].items():
                     c_err_input = deepcopy(c_input)
                     recursive_update(c_err_input, err_input)
+                    if c not in self.ctx.restart_inputs:
+                        self.ctx.restart_inputs[c] = {}
                     self.ctx.restart_inputs[c][err] = c_err_input
 
         self.ctx.running_calc = -1
@@ -241,6 +243,10 @@ class MPDSCrystalWorkChain(WorkChain):
             inputs.structure = self.ctx.optimized_structure
         inputs.basis_family, _ = get_data_class('crystal_dft.basis_family').get_or_create(self.ctx.basis_family)
         inputs.parameters = get_data_class('dict')(dict=self.ctx.inputs[calculation]['crystal'])
+        # delegate restart to child workchain
+        if calculation in self.ctx.restart_inputs:
+            inputs.restart_params = get_data_class('dict')(dict={k: v['crystal'] for k, v
+                                                                 in self.ctx.restart_inputs[calculation].items()})
         workchain_label = self.inputs.metadata.get('label', 'MPDS CRYSTAL workchain')
         calc_label = metadata.pop('label') if 'label' in metadata else calculation
 
@@ -263,8 +269,6 @@ class MPDSCrystalWorkChain(WorkChain):
         calculation = self.ctx.calculations[self.ctx.running_calc]
         calc = self.ctx.get(calculation)
         ok_finish = calc.is_finished_ok
-
-        # restart calculation on error (if asked for)
 
         # check if this was optimization
         is_optimization = self.ctx.is_optimization
