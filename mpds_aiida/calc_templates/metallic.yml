@@ -30,7 +30,7 @@ default:
         EXCHSIZE: 128000000
         TOLINTEG: [8, 8, 8, 8, 30]
         FMIXING: 70
-        SMEAR: 0.01
+        SMEAR: 0.05
         MAXCYCLE: 75
       fock_mixing: DIISALLK
       post_scf: ['PPAN']
@@ -55,6 +55,12 @@ calculations:
             convergence:
               TOLDEE: 9
               MAXCYCLE: 50
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [ 8, 8, 8, 8, 40]
   phonons:
     metadata:
       label: 'Phonon frequency'

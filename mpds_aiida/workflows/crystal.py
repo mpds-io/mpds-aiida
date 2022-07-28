@@ -67,7 +67,7 @@ class MPDSCrystalWorkChain(WorkChain):
         self.ctx.codes = AttributeDict()
         self.ctx.structure = self.get_geometry()
 
-        if isinstance(self.ctx.structure, ExitCode): # FIXME
+        if isinstance(self.ctx.structure, ExitCode):  # FIXME
             return self.ctx.structure
 
         # 2) find the bonding type if needed; if not, just use the default options
@@ -120,6 +120,9 @@ class MPDSCrystalWorkChain(WorkChain):
         # Pre calc stuff
         self.ctx.metadata = AttributeDict()
         self.ctx.inputs = AttributeDict()
+        self.ctx.restart_inputs = AttributeDict()
+        self.ctx.restart = AttributeDict({'idx': 0,      # restart sequence number
+                                          'err': None})  # error number defining the next input
         for c in calculations:
             c_metadata = {k: deepcopy(v) for k, v in options['options'].items()
                           if ('need_' not in k or c in k) and (k not in self.OPTIONS_WORKCHAIN)}
@@ -145,6 +148,12 @@ class MPDSCrystalWorkChain(WorkChain):
             c_input = deepcopy(options['default'])
             recursive_update(c_input, options['calculations'][c]['parameters'])
             self.ctx.inputs[c] = c_input
+            # store the inputs that are run on error if there are any
+            if 'on_error' in options['calculations'][c]:
+                for err, err_input in options['calculations'][c]['on_error'].items():
+                    c_err_input = deepcopy(c_input)
+                    recursive_update(c_err_input, err_input)
+                    self.ctx.restart_inputs[c][err] = c_err_input
 
         self.ctx.running_calc = -1
         self.ctx.running_calc_type = None
@@ -254,6 +263,8 @@ class MPDSCrystalWorkChain(WorkChain):
         calculation = self.ctx.calculations[self.ctx.running_calc]
         calc = self.ctx.get(calculation)
         ok_finish = calc.is_finished_ok
+
+        # restart calculation on error (if asked for)
 
         # check if this was optimization
         is_optimization = self.ctx.is_optimization

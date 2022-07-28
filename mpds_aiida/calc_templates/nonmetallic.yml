@@ -50,6 +50,13 @@ calculations:
             convergence:
               TOLDEE: 9
               MAXCYCLE: 50
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+
   phonons:
     metadata:
       label: 'Phonon frequency'
