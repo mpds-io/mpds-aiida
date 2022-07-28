@@ -1,35 +1,31 @@
 
+import os
 # noinspection PyUnresolvedReferences
-from mpds_aiida.tests.fixtures import *
+from aiida.manage.tests.pytest_fixtures import temp_dir, aiida_localhost, aiida_profile, aiida_local_code_factory
+from mpds_aiida.tests import TEST_DIR
+# noinspection PyUnresolvedReferences
+from mpds_aiida.tests.fixtures import test_basis
 
 
-def test_workchain_run(test_crystal_code,
-                       crystal_calc_parameters,
-                       test_properties_code,
-                       properties_calc_parameters,
-                       test_basis):
-    from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
+def test_workchain_run(aiida_localhost, aiida_profile, aiida_local_code_factory, test_basis):
+    from mpds_aiida.workflows.mpds import MPDSStructureWorkChain
     from aiida.plugins import DataFactory
     from aiida.engine import run
-    inputs = MPDSCrystalWorkchain.get_builder()
-    inputs.crystal_code = test_crystal_code
-    inputs.properties_code = test_properties_code
-    inputs.crystal_parameters = crystal_calc_parameters
-    inputs.properties_parameters = properties_calc_parameters
-    inputs.basis_family = test_basis
+    mock_exec = TEST_DIR / 'mock' / 'crystal'
+    code = aiida_local_code_factory('mock_crystal', str(mock_exec))
+    inputs = MPDSStructureWorkChain.get_builder()
     inputs.mpds_query = DataFactory('dict')(dict={
         "classes": "binary",
         "formulae": "MgO",
         "sgs": 225
     })   # MgO 225
-    inputs.options = DataFactory('dict')(dict={
-        'label': 'MgO/225/PS',
-        'resources': {
-            'num_machines': 1,
-            'num_mpiprocs_per_machine': 1
-        }
-    })
-    results = run(MPDSCrystalWorkchain, **inputs)
+    inputs.workchain_options = DataFactory('dict')(dict={
+        'codes': {
+            'crystal': code.full_label,
+        },
+        'basis_family': 'STO-3G'}
+    )
+    results = run(MPDSStructureWorkChain, **inputs)
     assert 'output_parameters' in results
     assert 'frequency_parameters' in results
     assert 'elastic_parameters' in results
