@@ -58,9 +58,13 @@ calculations:
     on_error:
       300:
         crystal:
+          geometry:
+            optimise:
+              convergence:
+                MAXCYCLE: 100
           scf:
             numerical:
-              TOLINTEG: [ 8, 8, 8, 8, 40]
+              TOLINTEG: [8, 8, 8, 8, 40]
   phonons:
     metadata:
       label: 'Phonon frequency'

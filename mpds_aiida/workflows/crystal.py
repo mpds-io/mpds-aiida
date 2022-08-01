@@ -245,7 +245,7 @@ class MPDSCrystalWorkChain(WorkChain):
         inputs.parameters = get_data_class('dict')(dict=self.ctx.inputs[calculation]['crystal'])
         # delegate restart to child workchain
         if calculation in self.ctx.restart_inputs:
-            inputs.restart_params = get_data_class('dict')(dict={k: v['crystal'] for k, v
+            inputs.restart_params = get_data_class('dict')(dict={str(k): v['crystal'] for k, v
                                                                  in self.ctx.restart_inputs[calculation].items()})
         workchain_label = self.inputs.metadata.get('label', 'MPDS CRYSTAL workchain')
         calc_label = metadata.pop('label') if 'label' in metadata else calculation
