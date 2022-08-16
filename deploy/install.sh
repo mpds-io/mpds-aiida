@@ -1,14 +1,16 @@
 #!/bin/bash
+set -euo pipefail
 
 #================== GENERAL ==================
 
-PG_VERSION="14.1" # NB subject to update
+PG_VERSION="14.6" # NB subject to update
 PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v$PG_VERSION/postgresql-$PG_VERSION.tar.gz
 
 SETTINGS=(
 postgresql.conf
 supervisord.conf
-#sysctl.conf
+sysctl.conf
+aiida_setup.sh
 )
 
 for ((i=0; i<${#SETTINGS[@]}; i++)); do
@@ -25,7 +27,7 @@ update-rc.d supervisor defaults
 update-rc.d supervisor enable
 
 echo "set mouse-=a" > ~/.vimrc
-rm /root/.netrc
+#rm /root/.netrc
 
 #================== POSTGRES ==================
 
@@ -49,7 +51,7 @@ cd postgresql-$PG_VERSION
 make && make install
 su postgres -c "/data/pg/bin/initdb -D /data/pg/db"
 su postgres -c "/data/pg/bin/pg_ctl -D /data/pg/db -l /tmp/logfile start"
-su postgres -c "/data/pg/bin/createdb aiidadb"
+su postgres -c "/data/pg/bin/createdb aiida"
 
 chown -R postgres:postgres /data/pg
 cd ..
@@ -58,7 +60,7 @@ cp $(dirname $0)/postgresql.conf /data/pg/db/
 #================== GENERAL#2 ==================
 
 cp $(dirname $0)/supervisord.conf /etc/supervisor/
-#cat $(dirname $0)/sysctl.conf >> /etc/sysctl.conf
+cat $(dirname $0)/sysctl.conf >> /etc/sysctl.conf
 
 #================== AiiDA ==================
 
@@ -71,6 +73,8 @@ pip install /data/mpds-aiida/
 reentry scan
 cd /data/mpds-aiida/
 python scripts/bs_unito_download.py
+cd MPDSBSL_NEUTRAL_6TH
+verdi data crystal_dft uploadfamily --name=MPDSBSL_NEUTRAL_6TH # TODO check if nothing has changed
 
 cat /dev/zero | ssh-keygen -q -N ""
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
