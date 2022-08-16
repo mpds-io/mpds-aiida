@@ -12,8 +12,8 @@ from mpds_client import MPDSDataRetrieval
 from mpds_aiida.common import get_template, get_mpds_phases
 
 
-ela = ['Li', 'Na', 'K', 'Rb', 'Be', 'Mg', 'Ca', 'Sr']
-elb = ['F', 'Cl', 'Br', 'I', 'O', 'S', 'Se', 'Te']
+ela = ['Li', 'Na', 'K', 'Rb', 'Be', 'Mg']
+elb = ['F', 'Cl', 'Br', 'I', 'O', 'S']
 
 client = MPDSDataRetrieval()
 
@@ -22,11 +22,6 @@ calc_setup = get_template()
 load_profile()
 
 inputs = MPDSCrystalWorkchain.get_builder()
-inputs.crystal_code = Code.get_from_string('{}@{}'.format(calc_setup['codes'][0], calc_setup['cluster']))
-inputs.crystal_parameters = DataFactory('dict')(dict=calc_setup['parameters']['crystal'])
-
-inputs.basis_family, _ = DataFactory('crystal_dft.basis_family').get_or_create(calc_setup['basis_family'])
-inputs.options = DataFactory('dict')(dict=calc_setup['options'])
 
 for elem_pair in product(ela, elb):
     print(elem_pair)

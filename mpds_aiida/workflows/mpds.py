@@ -6,7 +6,7 @@ import os
 import time
 import random
 import numpy as np
-from httplib2.error import ServerNotFoundError
+from httplib2 import ServerNotFoundError
 
 from aiida_crystal_dft.utils import get_data_class
 from mpds_client import MPDSDataRetrieval, APIError

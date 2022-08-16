@@ -21,7 +21,6 @@ else:
     formula, sgs, pearson = phase[0], phase[1], None
 
 sgs = int(sgs)
-calc_setup['default']['crystal']['title'] = "/".join(phase)
 
 inputs = MPDSStructureWorkChain.get_builder()
 

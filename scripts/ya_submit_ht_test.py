@@ -3,24 +3,20 @@
 import sys
 import random
 from itertools import product
-from configparser import ConfigParser
 
 import numpy as np
 from aiida_crystal_dft.io.f34 import Fort34
 
-from yascheduler import CONFIG_FILE
 from yascheduler.scheduler import Yascheduler
 
 from mpds_client import MPDSDataRetrieval
 from mpds_aiida.common import get_template, get_basis_sets, get_mpds_structures, get_input
 
 
-ela = ['Li', 'Na', 'K', 'Rb', 'Be', 'Mg', 'Ca', 'Sr']
-elb = ['F', 'Cl', 'Br', 'I', 'O', 'S', 'Se', 'Te']
+ela = ['Li', 'Na', 'K', 'Rb', 'Be', 'Mg']
+elb = ['F', 'Cl', 'Br', 'I', 'O', 'S']
 
-config = ConfigParser()
-config.read(CONFIG_FILE)
-yac = Yascheduler(config)
+yac = Yascheduler()
 
 client = MPDSDataRetrieval()
 
@@ -63,5 +59,5 @@ for elem_pair in product(ela, elb):
         struct_input = str(struct_input)
         setup_input = str(setup_input)
 
-        yac.queue_submit_task(target_obj.info['phase'], dict(structure=struct_input, input=setup_input))
+        yac.queue_submit_task(target_obj.info['phase'], {"fort.34": struct_input, "INPUT": setup_input}, "pcrystal")
         counter += 1

@@ -2,13 +2,11 @@
 
 import os
 import sys
-from configparser import ConfigParser
 
 from aiida_crystal_dft.io.f34 import Fort34
 from mpds_ml_labs.struct_utils import detect_format, refine
 from mpds_ml_labs.cif_utils import cif_to_ase
 
-from yascheduler import CONFIG_FILE
 from yascheduler.scheduler import Yascheduler
 
 import spglib
@@ -31,13 +29,11 @@ label = sys.argv[1].split(os.sep)[-1].split('.')[0] + \
 ase_obj, error = refine(ase_obj, accuracy=symprec, conventional_cell=True)
 assert not error, error
 
-yaconfig = ConfigParser()
-yaconfig.read(CONFIG_FILE)
-yac = Yascheduler(yaconfig)
+yac = Yascheduler()
 
 try: tpl = sys.argv[3]
 except: tpl = 'minimal.yml'
-print('template is %s' % tpl)
+print('Using template %s' % tpl)
 
 calc_setup = get_template(tpl)
 bs_repo = get_basis_sets(calc_setup['basis_family'])
@@ -51,6 +47,6 @@ f34_input = Fort34([bs_repo[el] for el in elements])
 struct_input = str(f34_input.from_ase(ase_obj))
 setup_input = str(get_input(calc_setup['default']['crystal'], elements, bs_repo, label))
 
-result = yac.queue_submit_task(label, dict(structure=struct_input, input=setup_input))
+result = yac.queue_submit_task(label, {"fort.34": struct_input, "INPUT": setup_input}, "pcrystal")
 print(label)
 print(result)
