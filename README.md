@@ -28,7 +28,7 @@ git clone https://github.com/mpds-io/mpds-aiida
 pip install mpds-aiida/
 ```
 
-Here some reader's AiiDA experience is assumed. Note, that the AiiDA as of *version 1.1.0* does _not_ support cloud environments, so the custom cloud scheduler engine [yascheduler](https://github.com/tilde-lab/yascheduler) should be used. This scheduler manages the [CRYSTAL](http://www.crystal.unito.it) simulation engine at the cloud VPS instances and encapsulates all the details, concerning the remote *computer* task submission, queue, and results retrieval, as well as the VPS management. This scheduler runs its own daemon and lives together with the AiiDA at the same machine. However, AiiDA considers it as a remote service, accessible via the `ssh` transport, so the command `ssh $USER@localhost` should pass. To achieve that, the reader might run _e.g._:
+Here some reader's AiiDA experience is assumed. Note, since the AiiDA does _not_ support cloud environments, the custom cloud scheduler engine [yascheduler](https://github.com/tilde-lab/yascheduler) should be employed. This scheduler manages the [CRYSTAL](http://www.crystal.unito.it) simulation engine at the cloud VPS instances and encapsulates all the details, concerning the remote *computer* task submission, queue, and results retrieval, as well as the VPS management. This scheduler runs its own daemon and lives together with the AiiDA at the same machine. However, AiiDA considers it as a remote service, accessible via the `ssh` transport, so the command `ssh $USER@localhost` should pass. To achieve that, the reader might run _e.g._:
 
 ```shell
 ssh-keygen -t rsa
@@ -102,8 +102,8 @@ Note: this repo is subject to change and presents an ongoing work in progress.
 
 ## Licensing
 
-This code: [MIT](https://en.wikipedia.org/wiki/MIT_License)
-CRYSTAL engine: [commercial](https://www.crystal.unito.it)
+- This code: [MIT](https://en.wikipedia.org/wiki/MIT_License)
+- CRYSTAL engine: [commercial](https://www.crystal.unito.it)
 
 The resulting data are available at the [MPDS platform](https://mpds.io/search/ab%20initio%20calculations), according to the CC BY 4.0 license.
 

@@ -7,7 +7,7 @@ from itertools import product
 import numpy as np
 from aiida_crystal_dft.io.f34 import Fort34
 
-from yascheduler.scheduler import Yascheduler
+from yascheduler import Yascheduler
 
 from mpds_client import MPDSDataRetrieval
 from mpds_aiida.common import get_template, get_basis_sets, get_mpds_structures, get_input

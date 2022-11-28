@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+
 from aiida import load_profile
 from aiida.plugins import DataFactory
 from aiida.engine import submit
@@ -23,7 +24,6 @@ else:
 sgs = int(sgs)
 
 inputs = MPDSStructureWorkChain.get_builder()
-
 inputs.metadata = dict(label="/".join(phase))
 inputs.mpds_query = DataFactory('dict')(dict={'formulae': formula, 'sgs': sgs})
 

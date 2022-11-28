@@ -7,7 +7,7 @@ from aiida_crystal_dft.io.f34 import Fort34
 from mpds_ml_labs.struct_utils import detect_format, refine
 from mpds_ml_labs.cif_utils import cif_to_ase
 
-from yascheduler.scheduler import Yascheduler
+from yascheduler import Yascheduler
 
 import spglib
 from mpds_aiida.common import get_template, get_basis_sets, get_input

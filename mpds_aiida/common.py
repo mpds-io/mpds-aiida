@@ -75,7 +75,7 @@ def get_input(calc_params_crystal, elements, bs_src, label):
     """
     Generates a program input
     """
-    calc_params_crystal['title'] = label
+    calc_params_crystal['label'] = label
 
     if isinstance(bs_src, dict):
         return D12(parameters=calc_params_crystal, basis=[bs_src[el] for el in elements])
