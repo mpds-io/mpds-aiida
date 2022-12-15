@@ -11,6 +11,7 @@ class AiidaStructureWorkChain(MPDSCrystalWorkChain):
     @classmethod
     def define(cls, spec):
         super(AiidaStructureWorkChain, cls).define(spec)
+
         # one required input: AiiDA structure
         spec.input('structure', valid_type=get_data_class('structure'), required=True)
 

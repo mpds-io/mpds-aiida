@@ -3,6 +3,7 @@ The base workflow for AiiDA combining CRYSTAL and MPDS
 """
 from copy import deepcopy
 from abc import abstractmethod
+
 from aiida.engine import WorkChain, if_, while_
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import ExitCode
@@ -10,11 +11,12 @@ from aiida.orm import Code
 from aiida.orm.nodes.data.base import to_aiida_type
 from aiida_crystal_dft.utils import get_data_class, recursive_update
 from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
+
 from ..common import guess_metal, get_template
 
 
 class MPDSCrystalWorkChain(WorkChain):
-    """ A workchain enclosing all calculations for getting as much data from Crystal runs as we can
+    """ A workchain enclosing all calculations for getting as much data from CRYSTAL runs as we can
     """
     OPTIONS_FILES = {
         'default': 'nonmetallic.yml',
@@ -63,6 +65,7 @@ class MPDSCrystalWorkChain(WorkChain):
 
     def init_inputs(self):
         # check that we actually have the parameters, populate with the defaults if not
+
         # 1) get the structure (label in metadata.label!)
         self.ctx.codes = AttributeDict()
         self.ctx.structure = self.get_geometry()
@@ -73,16 +76,16 @@ class MPDSCrystalWorkChain(WorkChain):
         # 2) find the bonding type if needed; if not, just use the default options
         if not self.inputs.check_for_bond_type:
             default_file = self.OPTIONS_FILES['default']
-            self.report(f"Using {default_file} as default file")
+            self.report(f"Using {default_file} as modeling template")
         else:
             # check for the bonding type
             is_metallic = guess_metal(self.ctx.structure.get_ase())
             if is_metallic:
                 default_file = self.OPTIONS_FILES['metallic']
-                self.report(f"Guessed metallic bonding; using {default_file} as default file")
+                self.report(f"Guessed metallic bonding; using {default_file} as modeling template")
             else:
                 default_file = self.OPTIONS_FILES['nonmetallic']
-                self.report(f"Guessed nonmetallic bonding; using {default_file} as default file")
+                self.report(f"Guessed nonmetallic bonding; using {default_file} as modeling template")
         options = get_template(default_file)
 
         # update with workchain options, if present (recursively if needed)
@@ -101,7 +104,7 @@ class MPDSCrystalWorkChain(WorkChain):
         self.ctx.basis_family = options['basis_family']
 
         # dealing with calculations (making it priority queue)
-        calculations = dict(zip(options['calculations'].keys(), [10*i for i in range(len(options['calculations']))]))
+        calculations = dict(zip(options['calculations'].keys(), [10 * i for i in range(len(options['calculations']))]))
         if 'optimize_structure' in options['options']:
             optimization = options['options']['optimize_structure']
             if optimization not in calculations:
@@ -148,6 +151,7 @@ class MPDSCrystalWorkChain(WorkChain):
             c_input = deepcopy(options['default'])
             recursive_update(c_input, options['calculations'][c]['parameters'])
             self.ctx.inputs[c] = c_input
+
             # store the inputs that are run on error if there are any
             if 'on_error' in options['calculations'][c]:
                 for err, err_input in options['calculations'][c]['on_error'].items():

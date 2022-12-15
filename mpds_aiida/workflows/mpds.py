@@ -5,6 +5,7 @@ The MPDS workflow for AiiDA that gets structure with MPDS query
 import os
 import time
 import random
+
 import numpy as np
 from httplib2 import ServerNotFoundError
 
@@ -18,8 +19,10 @@ class MPDSStructureWorkChain(MPDSCrystalWorkChain):
     @classmethod
     def define(cls, spec):
         super(MPDSStructureWorkChain, cls).define(spec)
-        # one required input: MPDS phase id
+
+        # one required input: MPDS phase
         spec.input('mpds_query', valid_type=get_data_class('dict'), required=True)
+
         # errors related to MPDS retrieval
         spec.exit_code(501, 'ERROR_NO_MPDS_API_KEY', message='MPDS API key not set')
         spec.exit_code(502, 'ERROR_API_ERROR', message='MPDS API Error')
