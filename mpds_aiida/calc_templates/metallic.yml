@@ -29,24 +29,16 @@ default:
         BIPOSIZE: 128000000
         EXCHSIZE: 128000000
         TOLINTEG: [8, 8, 8, 8, 30]
-        FMIXING: 70
-        SMEAR: 0.05
+        FMIXING: 90
+        SMEAR: 0.2
         MAXCYCLE: 75
       fock_mixing: DIISALLK
       post_scf: ['PPAN']
-  properties:
-    band:
-      shrink: 8
-      k_points: 80
-    newk:
-      k_points: [6, 6]
-    dos:
-      n_e: 40000
 
 calculations:
   optimise:
     metadata:
-      label: "Geometry optimization"
+      label: 'Geometry optimization'
     parameters:
       crystal:
         geometry:
@@ -60,20 +52,22 @@ calculations:
         crystal:
           geometry:
             optimise:
+              hessian: HESSIDEN
               convergence:
-                MAXCYCLE: 100
+                TOLDEE: 9
+                MAXCYCLE: 150
           scf:
             numerical:
               TOLINTEG: [8, 8, 8, 8, 40]
   phonons:
     metadata:
-      label: 'Phonon frequency'
+      label: 'Phonon frequencies'
     parameters:
       crystal:
         geometry:
           phonons:
             TEMPERAT: [35, 5.7125, 1000]
-            INTENS: True
+            SCELPHONO: [[1, 1, 0], [-1, 1, 0], [0, 0, 2]]
   elastic_constants:
     metadata:
       label: 'Elastic constants'
