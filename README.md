@@ -1,6 +1,8 @@
 Cloud factory for the accurate materials data
 ==========
 
+[![DOI](https://zenodo.org/badge/183018648.svg)](https://doi.org/10.5281/zenodo.7693214)
+
 using the MPDS data platform, AiiDA workflows, and CRYSTAL simulation engine.
 
 ![MPDS](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/mpds.png "MPDS + AiiDA + CRYSTAL") ![AiiDA](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/aiida.png "AiiDA + MPDS + CRYSTAL") ![CRYSTAL](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/crystal.jpg "CRYSTAL + MPDS + AiiDA")
