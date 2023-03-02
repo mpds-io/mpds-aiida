@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: mpds-aiida
+type: software
+license: MIT
+authors:
+  - given-names: Andrey
+    family-names: Sobolev
+    orcid: 'https://orcid.org/0000-0001-5086-6601'
+  - given-names: Evgeny
+    family-names: Blokhin
+    orcid: 'https://orcid.org/0000-0002-5333-3947'
+doi: 10.5281/zenodo.7693214
+url: 'https://github.com/mpds-io/mpds-aiida'
+keywords:
+  - AiiDA
+  - materials science
+  - ab initio
+  - first-priniples
+  - materials informatics
+  - MPDS platform
