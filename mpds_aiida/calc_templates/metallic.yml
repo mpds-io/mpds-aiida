@@ -11,7 +11,7 @@ options:
   is_magnetic: true
   optimize_structure: optimise
 
-basis_family: MPDSBSL_NEUTRAL_6TH
+basis_family: MPDSBSL_NEUTRAL_24
 
 default:
   crystal:
@@ -26,12 +26,12 @@ default:
           TOLLGRID: 16
       numerical:
         TOLDEE: 9
-        BIPOSIZE: 128000000
-        EXCHSIZE: 128000000
+        BIPOSIZE: 256000000
+        EXCHSIZE: 256000000
         TOLINTEG: [8, 8, 8, 8, 30]
         FMIXING: 90
         SMEAR: 0.2
-        MAXCYCLE: 75
+        MAXCYCLE: 150
       fock_mixing: DIISALLK
       post_scf: ['PPAN']
 
@@ -46,16 +46,34 @@ calculations:
             hessian: HESSIDEN
             convergence:
               TOLDEE: 9
-              MAXCYCLE: 50
     on_error:
       300:
         crystal:
-          geometry:
-            optimise:
-              hessian: HESSIDEN
-              convergence:
-                TOLDEE: 9
-                MAXCYCLE: 150
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+      301:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+      303:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+      304:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+      305:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+      306:
+        crystal:
           scf:
             numerical:
               TOLINTEG: [8, 8, 8, 8, 40]
@@ -68,6 +86,17 @@ calculations:
           phonons:
             TEMPERAT: [35, 5.7125, 1000]
             SCELPHONO: [[1, 1, 0], [-1, 1, 0], [0, 0, 2]]
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+      303:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
   elastic_constants:
     metadata:
       label: 'Elastic constants'
@@ -76,3 +105,14 @@ calculations:
         geometry:
           elastic_constants:
             type: ELASTCON
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+      303:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]

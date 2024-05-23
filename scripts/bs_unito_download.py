@@ -13,8 +13,8 @@ from aiida_crystal_dft.io.basis import BasisFile
 from pyparsing import ParseException
 
 
-FOLDER = 'MPDSBSL_NEUTRAL_6TH' # NB used as *basis_family* in production template
-CACHE_FILE = 'bs_library_2021.pkl'
+FOLDER = 'MPDSBSL_NEUTRAL_24' # NB used as *basis_family* in production template
+CACHE_FILE = 'bs_library_2024.pkl'
 
 saved = set()
 

@@ -11,7 +11,7 @@ options:
   is_magnetic: true
   optimize_structure: optimise
 
-basis_family: MPDSBSL_NEUTRAL_6TH
+basis_family: MPDSBSL_NEUTRAL_24
 
 default:
   crystal:
@@ -26,9 +26,9 @@ default:
           TOLLGRID: 16
       numerical:
         TOLDEE: 9
-        BIPOSIZE: 128000000
-        EXCHSIZE: 128000000
-        MAXCYCLE: 75
+        BIPOSIZE: 256000000
+        EXCHSIZE: 256000000
+        MAXCYCLE: 150
       post_scf: ['PPAN']
 
 calculations:
@@ -41,18 +41,58 @@ calculations:
           optimise:
             convergence:
               TOLDEE: 9
-              MAXCYCLE: 50
     on_error:
       300:
         crystal:
-          geometry:
-            optimise:
-              convergence:
-                TOLDEE: 9
-                MAXCYCLE: 150
           scf:
             numerical:
               TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
+      301:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
+      303:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
+      304:
+        crystal:
+          geometry:
+            optimise:
+              hessian: HESSIDEN
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
+      305:
+        crystal:
+          geometry:
+            optimise:
+              hessian: HESSIDEN
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
+      306:
+        crystal:
+          geometry:
+            optimise:
+              hessian: HESSIDEN
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
   phonons:
     metadata:
       label: 'Phonon frequencies'
@@ -62,6 +102,21 @@ calculations:
           phonons:
             TEMPERAT: [35, 5.7125, 1000]
             SCELPHONO: [[1, 1, 0], [-1, 1, 0], [0, 0, 2]]
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
+      303:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
   elastic_constants:
     metadata:
       label: 'Elastic constants'
@@ -70,3 +125,18 @@ calculations:
         geometry:
           elastic_constants:
             type: ELASTCON
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
+      303:
+        crystal:
+          scf:
+            numerical:
+              TOLINTEG: [8, 8, 8, 8, 40]
+              FMIXING: 90
+            fock_mixing: DIISALLK
