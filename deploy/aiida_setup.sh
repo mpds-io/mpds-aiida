@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-verdi setup --non-interactive --db-host localhost --db-port 5432 --db-name aiida --db-username postgres --db-password nonce --repository /data/aiida --email eb@tilde.pro --first-name Evgeny --last-name Blokhin --institution TildeMI --profile default
+ssh -T localhost "whoami"
+
+verdi setup --non-interactive --db-host localhost --db-port 5432 --db-name aiida --db-username postgres --db-password nonce --repository /data/aiida --email gv@tilde.pro --first-name Giuseppe --last-name Verdi --institution LaScala --profile default
 
 verdi computer setup --non-interactive --label=yascheduler --hostname=localhost --transport=core.ssh --scheduler=yascheduler --work-dir=/data/aiida
 verdi computer configure core.ssh --non-interactive --username=root --port=22 --key-filename=~/.ssh/id_rsa.pub --key-policy=AutoAddPolicy --safe-interval 1 yascheduler
