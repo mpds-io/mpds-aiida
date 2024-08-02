@@ -1,21 +1,26 @@
-import sys
 import argparse
+import sys
+
 import yaml
 from aiida import load_profile
-from aiida.plugins import DataFactory
 from aiida.engine import submit
+from aiida.plugins import DataFactory
 from mpds_aiida.workflows.mpds import MPDSStructureWorkChain
+
 
 def main():
     load_profile()
 
     parser = argparse.ArgumentParser(description="Submit an MPDSStructureWorkChain job")
-    parser.add_argument("phase", nargs="?", default="MgO/225", help="Phase information in the format 'formula/sgs/pearson'")
+    parser.add_argument("phase",
+                        nargs="?",
+                        default="MgO/225",
+                        help="Phase information in the format 'formula/sgs/pearson'")
     parser.add_argument("--scheme", default=None, help="Full path to the scheme file")
     args = parser.parse_args()
-    
+
     phase = args.phase.split("/")
-    
+
     if len(phase) == 3:
         formula, sgs, pearson = phase
     else:
@@ -28,7 +33,7 @@ def main():
         sys.exit(1)
 
     inputs = MPDSStructureWorkChain.get_builder()
-    
+
     if args.scheme:
         try:
             with open(args.scheme) as f:
@@ -42,10 +47,11 @@ def main():
     else:
         inputs.workchain_options = {}
 
-    inputs.metadata = dict(label="/".join(phase))
+    inputs.metadata = {"label": "/".join(phase)}
     inputs.mpds_query = DataFactory('dict')(dict={'formulae': formula, 'sgs': sgs})
     calc = submit(MPDSStructureWorkChain, **inputs)
     print(f"Submitted WorkChain; calc=WorkCalculation(PK={calc.pk})")
+
 
 if __name__ == "__main__":
     main()
