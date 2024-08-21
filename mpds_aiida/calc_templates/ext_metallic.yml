@@ -16,7 +16,7 @@ basis_family: MPDSBSL_NEUTRAL_24
 default:
   crystal:
     scf:
-      k_points: [16, 48]
+      k_points: [18, 54]
       dft:
         SPIN: True
         xc: PBE0
@@ -55,17 +55,25 @@ calculations:
       301:
         crystal:
           scf:
+            k_points: [36, 72]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
       303:
         crystal:
           scf:
+            k_points: [36, 72]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
       304:
         crystal:
           scf:
-            k_points: [32, 64]
+            k_points: [36, 72]
             numerical:
               TOLLDENS: 10
               TOLLGRID: 18
@@ -74,7 +82,7 @@ calculations:
       305:
         crystal:
           scf:
-            k_points: [32, 64]
+            k_points: [36, 72]
             numerical:
               TOLLDENS: 10
               TOLLGRID: 18
@@ -83,8 +91,12 @@ calculations:
       306:
         crystal:
           scf:
+            k_points: [36, 72]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
   phonons:
     metadata:
       label: 'Phonon frequencies'
@@ -99,12 +111,16 @@ calculations:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              MAXCYCLE: 1000
       303:
         crystal:
           scf:
+            k_points: [36, 72]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
   elastic_constants:
     metadata:
       label: 'Elastic constants'
@@ -118,9 +134,13 @@ calculations:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              MAXCYCLE: 1000
       303:
         crystal:
           scf:
+            k_points: [36, 72]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
