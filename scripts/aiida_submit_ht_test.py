@@ -6,10 +6,10 @@ from aiida import load_profile
 from aiida.plugins import DataFactory
 from aiida.orm import Code
 from aiida.engine import submit
-from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
+from mpds_aiida.workflows.mpds import MPDSStructureWorkChain
 
 from mpds_client import MPDSDataRetrieval
-from mpds_aiida.common import get_template, get_mpds_phases
+from mpds_aiida.common import get_mpds_phases
 
 
 ela = ['Li', 'Na', 'K']
@@ -17,16 +17,9 @@ elb = ['F', 'Cl', 'Br']
 
 client = MPDSDataRetrieval()
 
-calc_setup = get_template()
-
 load_profile()
 
-inputs = MPDSCrystalWorkchain.get_builder()
-inputs.crystal_code = Code.get_from_string('{}@{}'.format(calc_setup['codes'][0], calc_setup['cluster']))
-inputs.crystal_parameters = DataFactory('dict')(dict=calc_setup['parameters']['crystal'])
-
-inputs.basis_family, _ = DataFactory('crystal_dft.basis_family').get_or_create(calc_setup['basis_family'])
-inputs.options = DataFactory('dict')(dict=calc_setup['options'])
+inputs = MPDSStructureWorkChain.get_builder()
 
 for elem_pair in product(ela, elb):
     print(elem_pair)
@@ -36,5 +29,5 @@ for elem_pair in product(ela, elb):
         formula, sgs, pearson = phase.split('/')
         inputs.metadata = {'label': phase}
         inputs.mpds_query = DataFactory('dict')(dict={'formulae': formula, 'sgs': int(sgs)})
-        wc = submit(MPDSCrystalWorkchain, **inputs)
+        wc = submit(MPDSStructureWorkChain, **inputs)
         print("Submitted WorkChain %s for %s" % (wc.pk, phase))

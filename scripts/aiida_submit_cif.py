@@ -9,8 +9,9 @@ from mpds_aiida.workflows.aiida import AiidaStructureWorkChain
 
 import spglib
 
-from mpds_ml_labs.struct_utils import detect_format, refine, get_formula
-from mpds_ml_labs.cif_utils import cif_to_ase
+from metis_backend.datasources.fmt import detect_format
+from metis_backend.structures.struct_utils import refine, get_formula
+from metis_backend.structures.cif_utils import cif_to_ase
 
 
 load_profile()
