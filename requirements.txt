@@ -4,4 +4,3 @@ numpy >= 1.17.5
 ase >= 3.19
 aiida-crystal-dft @ git+https://github.com/tilde-lab/aiida-crystal-dft
 yascheduler >= 1.0.12
-metis-backend @ git+https://github.com/basf/metis-backend
