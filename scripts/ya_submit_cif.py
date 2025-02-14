@@ -4,8 +4,9 @@ import os
 import sys
 
 from aiida_crystal_dft.io.f34 import Fort34
-from mpds_ml_labs.struct_utils import detect_format, refine
-from mpds_ml_labs.cif_utils import cif_to_ase
+from absolidix_backend.datasources.fmt import detect_format
+from absolidix_backend.structures.struct_utils import refine
+from absolidix_backend.structures.cif_utils import cif_to_ase
 
 from yascheduler import Yascheduler
 

@@ -4,3 +4,4 @@ numpy >= 1.17.5
 ase >= 3.19
 aiida-crystal-dft @ git+https://github.com/tilde-lab/aiida-crystal-dft
 yascheduler >= 1.0.12
+jsonschema <= 3.2.0
