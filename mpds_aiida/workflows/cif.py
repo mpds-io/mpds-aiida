@@ -4,8 +4,8 @@ The MPDS workflow using structure from CIF file
 """
 from aiida_crystal_dft.utils import get_data_class
 
-from metis_backend.datasources.fmt import detect_format
-from metis_backend.structures.cif_utils import cif_to_ase
+from absolidix_backend.datasources.fmt import detect_format
+from absolidix_backend.structures.cif_utils import cif_to_ase
 
 from .crystal import MPDSCrystalWorkChain
 
