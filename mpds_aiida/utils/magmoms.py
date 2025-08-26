@@ -1,17 +1,18 @@
-from ase import Atoms
+import os
+import re
+import tempfile
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
-from typing import Dict, Union, Tuple, List, Any
-
+from aiida.orm import StructureData
+from aiida_fleur.data.fleurinp import FleurinpData
+from ase import Atoms
+from ase.data import chemical_symbols
 from spglib import (
-    get_magnetic_symmetry_dataset,
     find_primitive,
+    get_magnetic_symmetry_dataset,
     standardize_cell,
 )
-
-from aiida.orm import StructureData
-from ase.data import chemical_symbols
-import re
 
 
 def convert_to_set(data: List[Tuple[Any]]) -> Tuple[set, List[Tuple]]:
@@ -438,3 +439,26 @@ def reverse_structure_data(
     atoms.set_initial_magnetic_moments(magnetic_moments)
 
     return atoms
+
+def convert_xml_to_FleurInpData(xml_input: str):
+    """
+    Takes the content of an inp.xml file as a string, saves it to a temporary folder
+    as 'inp.xml', and converts it to a FleurinpData object.
+
+    Args:
+        xml_input (str): Content of inp.xml as a string.
+
+    Returns:
+        FleurinpData: The FleurinpData object created from the XML input.
+    """
+
+    # !!! IF YOU WORK WITH MAGMOMS IT IS HIGHLY IMPORTANT TO MAKE SURE THAT
+    # !!! YOU ARE USING THIS ase-fleur LIBRARY git+https://github.com/blokhin/ase-fleur 
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        xml_path = os.path.join(tmp_dir, "inp.xml")
+        with open(xml_path, "w") as f:
+            f.write(xml_input)
+        fleur_inp_data = FleurinpData(files=[xml_path])
+
+    return fleur_inp_data
