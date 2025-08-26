@@ -1,26 +1,26 @@
-from aiida.engine import WorkChain, ToContext
+import numpy as np
+from ab_initio_calculations.utils.fleur_utils import Fleur_setup
+from aiida.engine import ExitCode, ToContext, WorkChain
 from aiida.orm import (
     ArrayData,
-    Str,
+    Bool,
     Dict,
-    StructureData,
     RemoteData,
+    Str,
+    Int,
+    StructureData,
     load_code,
 )
-from aiida_fleur.workflows.scf import FleurScfWorkChain
 from aiida_fleur.data.fleurinpmodifier import FleurinpModifier
 from aiida_fleur.tools.common_fleur_wf import get_inputs_fleur
 from aiida_fleur.workflows.base_fleur import FleurBaseWorkChain
-from aiida.engine import ExitCode
+from aiida_fleur.workflows.scf import FleurScfWorkChain
 from aiida_phonopy.workflows.phonopy import PhonopyWorkChain
-import numpy as np
 
-from ab_initio_calculations.utils.fleur_utils import Fleur_setup
-from mpds_aiida.utils.magmoms import ase_to_struct_prim, reverse_structure_data, convert_xml_to_FleurInpData
-
-from aiida import load_profile
-
-load_profile()
+from mpds_aiida.utils.magmoms import (
+    convert_xml_to_FleurInpData,
+    reverse_structure_data,
+)
 
 
 class FleurForcesWorkChain(WorkChain):
@@ -62,6 +62,7 @@ class FleurForcesWorkChain(WorkChain):
         spec.input("fleurinp", required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("structure_label", valid_type=Str, required=False)
+        spec.input("f_level", valid_type=Int, required=False, default= lambda: Int(0))
         spec.outline(
             cls.load_codes,
             cls.run_scf,
@@ -116,7 +117,7 @@ class FleurForcesWorkChain(WorkChain):
 
     def prepare_forces_input(self):
         """
-        Modify the input from SCF calculation: set l_f=True, f_level=3.
+        Modify the input from SCF calculation: set l_f=True, f_level from inputs.
         """
         # Get FleurinpData from SCF workchain output
         scf_wc = self.ctx.scf_wc
@@ -127,7 +128,9 @@ class FleurForcesWorkChain(WorkChain):
             fleurinp = scf_wc.outputs.last_calc.fleurinp  # fallback
 
         fleurmode = FleurinpModifier(fleurinp)
-        fleurmode.set_inpchanges({"l_f": True, "f_level": 0})
+        # Get f_level from inputs, default to 0 if not provided
+        f_level = self.inputs.get("f_level", Int(0))
+        fleurmode.set_inpchanges({"l_f": True, "f_level": f_level.value})
         self.ctx.forces_fleurinp = fleurmode.freeze()
         # Also get the remote folder
         self.ctx.remote_folder = scf_wc.outputs.last_calc.remote_folder
@@ -233,6 +236,13 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             help="magmoms mapper dict for setting initial magnetic moments in the supercells.",
         )
 
+        spec.input(
+            "test_magmoms_run",
+            valid_type=Bool,
+            required=False,
+            default=lambda: Bool(False),
+            help="If True, prints info from fleur inp.xml and stops without running calculations.",)
+
         spec.exit_code(
             402,
             "FORCES_DATA_NOT_FOUND",
@@ -245,6 +255,11 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             message="Failed to validate the generated inp.xml file.",
         )
 
+        spec.exit_code(
+            404,
+            "TEST_MAGMOMS_RUN",
+            message="TEST_MAGMOMS_RUN is set to True, so the workflow stopped after printing inp.xml info.",)
+
     def run_forces(self):
         """
         Run FleurForcesWorkChain for pristine and each displaced supercell.
@@ -255,6 +270,7 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
         magmoms_mapper = self.inputs["magmoms_mapper"].get_dict() if self.inputs.get("magmoms_mapper", None) else None
 
         inputs = self.inputs.fleur_parameters.get_dict()
+        xml_input = None
 
         # Run displaced supercells
         for label, structure in supercells_dict.items():
@@ -275,6 +291,13 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                     inputs["fleurinp"] = fleur_inp_data
             else:
                 inputs["structure"] = structure
+
+            if self.inputs.get("test_magmoms_run", Bool(False)).value:
+                if xml_input:
+                    last_lines = xml_input.split('\n')[-50:] # Get the last 20 lines
+                    self.report("Last 50 lines of inp.xml:")
+                    self.report("\n".join(last_lines))
+                return ExitCode(404)
 
             inputs["structure_label"] = Str(number)
             futures[number] = self.submit(FleurForcesWorkChain, **inputs)
@@ -321,13 +344,3 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
 
         self.report(f"forces_dict: {forces_dict}")
         self.out("supercells_forces", forces_dict)
-
-
-def test_forces_calulation():
-    pass
-
-def test_phonopy_fleur_no_magmoms():
-    pass
-
-def test_phonopy_fleur_with_magmoms():
-    pass
