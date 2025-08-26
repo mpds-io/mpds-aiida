@@ -15,6 +15,9 @@ from aiida.engine import ExitCode
 from aiida_phonopy.workflows.phonopy import PhonopyWorkChain
 import numpy as np
 
+from ab_initio_calculations.utils.fleur_utils import Fleur_setup
+from mpds_aiida.utils.magmoms import ase_to_struct_prim, reverse_structure_data, convert_xml_to_FleurInpData
+
 from aiida import load_profile
 
 load_profile()
@@ -44,7 +47,7 @@ class FleurForcesWorkChain(WorkChain):
 
         spec.input("fleur", valid_type=Str, required=True)
         spec.input("inpgen", valid_type=Str, required=False)
-        spec.input("structure", valid_type=StructureData, required=True)
+        spec.input("structure", valid_type=StructureData, required=False)
         spec.input("calc_parameters", valid_type=Dict, required=False)
         spec.input("wf_parameters", valid_type=Dict, required=False)
         spec.input("options", valid_type=Dict, required=False)
@@ -89,8 +92,7 @@ class FleurForcesWorkChain(WorkChain):
         """
         # to get rid of extra input parameters, we build new inputs dict
         inputs = {
-            "fleur": self.inputs.fleur,
-            "structure": self.inputs.structure,
+            "fleur": self.inputs.fleur
         }
         if "inpgen" in self.inputs:
             inputs["inpgen"] = self.inputs.inpgen
@@ -104,6 +106,8 @@ class FleurForcesWorkChain(WorkChain):
             inputs["settings"] = self.inputs.settings
         if "fleurinp" in self.inputs:
             inputs["fleurinp"] = self.inputs.fleurinp
+        if ("structure" in self.inputs) and ("fleurinp" not in self.inputs):
+            inputs["structure"] = self.inputs.structure
         if "remote_data" in self.inputs:
             inputs["remote_data"] = self.inputs.remote_data
 
@@ -222,10 +226,23 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             help="Fleur parameters for the Fleur calculation.",
         )
 
+        spec.input(
+            "magmoms_mapper",
+            valid_type=Dict,
+            required=False,
+            help="magmoms mapper dict for setting initial magnetic moments in the supercells.",
+        )
+
         spec.exit_code(
             402,
             "FORCES_DATA_NOT_FOUND",
             message="Failed to find forces data in the Fleur calculation outputs.",
+        )
+
+        spec.exit_code(
+            403,
+            "ERROR_XML_VALIDATION_FAILED",
+            message="Failed to validate the generated inp.xml file.",
         )
 
     def run_forces(self):
@@ -235,6 +252,7 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
         # Get pristine supercell and all displaced supercells
         supercells_dict = self.ctx.preprocess_data.calcfunctions.get_supercells_with_displacements()
         futures = {}
+        magmoms_mapper = self.inputs["magmoms_mapper"].get_dict() if self.inputs.get("magmoms_mapper", None) else None
 
         inputs = self.inputs.fleur_parameters.get_dict()
 
@@ -242,7 +260,22 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
         for label, structure in supercells_dict.items():
             number = label.split("_")[-1]
             self.report(f"submitting supercell: {number}")
-            inputs["structure"] = structure
+            # It generagets FleurInpData if magmoms_mapper is provided
+            # Otherwise it just passes StructureData
+            if "magmoms_mapper" in self.inputs:
+                atoms = reverse_structure_data(structure, magmoms_mapper)
+                fleur_setup = Fleur_setup(atoms)
+                error = fleur_setup.validate()
+                if error:
+                    self.report(f"Validation error: {error}")
+                    return ExitCode(403, f"Validation error: {error}")
+                else:
+                    xml_input = fleur_setup.get_input_setup(label="Fe_fcc")
+                    fleur_inp_data = convert_xml_to_FleurInpData(xml_input)
+                    inputs["fleurinp"] = fleur_inp_data
+            else:
+                inputs["structure"] = structure
+
             inputs["structure_label"] = Str(number)
             futures[number] = self.submit(FleurForcesWorkChain, **inputs)
 
@@ -291,109 +324,10 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
 
 
 def test_forces_calulation():
-    from aiida.engine import run
-    from aiida.orm import StructureData, Dict
-    from ase.spacegroup import crystal
+    pass
 
-    # Example usage
-    fleur_name = "fleur@yascheduler"
-    inpgen_name = "inpgen@local_machine"
-    # Setup structure
-    a = 5.511
-    c = 7.796
+def test_phonopy_fleur_no_magmoms():
+    pass
 
-    atoms = crystal(
-        ["Sr", "Ti", "O", "O"],
-        basis=[
-            (0, 0, 0.25),
-            (0.0, 0.5, 0.0),
-            (0.2451, 0.7451, 0),
-            (0, 0.5, 0.25),
-        ],
-        spacegroup=140,
-        cellpar=[a, a, c, 90, 90, 90],
-    )
-    structure = StructureData(ase=atoms)
-    # structure = load_node(215628)
-    options = Dict(
-        dict={
-            "resources": {
-                "num_machines": 1,
-                "num_mpiprocs_per_machine": 1,
-                "num_cores_per_mpiproc": 8,
-            },
-            "max_wallclock_seconds": 6 * 60 * 60,
-        }
-    )
-    inputs = {
-        "fleur": fleur_name,
-        "inpgen": inpgen_name,
-        "structure": structure,
-        "options": options,
-    }
-
-    result = run(FleurForcesWorkChain, **inputs)
-    print(result["forces"])
-
-
-def test_phonopy_fleur():
-    from aiida.engine import run_get_node
-    from aiida.orm import StructureData
-    from ase.spacegroup import crystal
-
-    # Example usage
-    fleur_name = "fleur@yascheduler"
-    inpgen_name = "inpgen@local_machine"
-
-
-    # Setup structure
-    a = 5.511
-    c = 7.796
-
-    atoms = crystal(
-        ["Sr", "Ti", "O", "O"],
-        basis=[
-            (0, 0, 0.25),
-            (0.0, 0.5, 0.0),
-            (0.2451, 0.7451, 0),
-            (0, 0.5, 0.25),
-        ],
-        spacegroup=140,
-        cellpar=[a, a, c, 90, 90, 90],
-    )
-    structure = StructureData(ase=atoms)
-
-    options = {
-        "resources": {
-            "num_machines": 1,
-            "num_mpiprocs_per_machine": 1,
-            "num_cores_per_mpiproc": 8,
-        },
-        "max_wallclock_seconds": 6 * 60 * 60,
-    }
-
-    settings = {
-        "fleur": fleur_name,
-        "inpgen": inpgen_name,
-        "options": options,
-        "settings": {"additional_retrieve_list": ["FORCES"]},
-    }
-
-    inputs = {
-        "structure": structure,
-        "fleur_parameters": settings,
-        "supercell_matrix": [[2, 0, 0], [0, 2, 0], [0, 0, 2]],
-        "phonopy": {
-            "code": load_code("phonopy@local_machine"),
-            "parameters": Dict({"band": "auto"}),
-        },
-    }
-
-    results, node = run_get_node(PhonopyFleurWorkChain, **inputs)
-    ph = node.outputs.phonopy_data.get_phonopy_instance()
-    ph.produce_force_constants()
-    ph.auto_band_structure(plot=True).savefig("Al_band_structure.png")
-
-if __name__ == "__main__":
-     test_phonopy_fleur()
-     # test_forces_calulation()
+def test_phonopy_fleur_with_magmoms():
+    pass
