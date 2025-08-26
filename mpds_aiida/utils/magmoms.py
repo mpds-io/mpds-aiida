@@ -198,7 +198,7 @@ def spg_magnetism_handling(cell: Tuple[np.ndarray, ...], return_raw=False):
             restored_types,    # real atomic types
             new_prim_cell_[2], # mapped atomic types
             restored_magmoms,  # real magnetic moments
-        ), reverse_mapper      # mapping dictionary
+        ),  {str(v): k for k, v in mapper.items()}      # mapping dictionary
 
 
     return (
@@ -420,7 +420,7 @@ def reverse_structure_data(
         # Extract magnetic moment from kind name
         match = re.search(r"[A-Za-z]+(\d+)$", kind_name)
         if match:
-            atom_number = int(match.group(1))
+            atom_number = match.group(1)
 
             if atom_number in mapper:
                 _, magnetic_moment, _ = mapper[atom_number]
