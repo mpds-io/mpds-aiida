@@ -276,21 +276,21 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
         for label, structure in supercells_dict.items():
             number = label.split("_")[-1]
             self.report(f"submitting supercell: {number}")
-            # It generagets FleurInpData if magmoms_mapper is provided
-            # Otherwise it just passes StructureData
+            # It creates ASE.atoms and generates inp.xml
             if "magmoms_mapper" in self.inputs:
                 atoms = reverse_structure_data(structure, magmoms_mapper)
-                fleur_setup = Fleur_setup(atoms)
-                error = fleur_setup.validate()
-                if error:
-                    self.report(f"Validation error: {error}")
-                    return ExitCode(403, f"Validation error: {error}")
-                else:
-                    xml_input = fleur_setup.get_input_setup(label="Fe_fcc")
-                    fleur_inp_data = convert_xml_to_FleurInpData(xml_input)
-                    inputs["fleurinp"] = fleur_inp_data
             else:
-                inputs["structure"] = structure
+                atoms = structure.get_ase()
+                
+            fleur_setup = Fleur_setup(atoms)
+            error = fleur_setup.validate()
+            if error:
+                self.report(f"Validation error: {error}")
+                return ExitCode(403, f"Validation error: {error}")
+            else:
+                xml_input = fleur_setup.get_input_setup(label="Fe_fcc")
+                fleur_inp_data = convert_xml_to_FleurInpData(xml_input)
+                inputs["fleurinp"] = fleur_inp_data
 
             if self.inputs.get("test_magmoms_run", Bool(False)).value:
                 if xml_input:
