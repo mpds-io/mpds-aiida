@@ -10,4 +10,6 @@ spglib >=2.6.0
 # This may cause troubles when aiida-phonopy finally updates its phonopy based code.
 # But for now it's the only way to ensure compatibility.
 phonopy == 2.19.1 
-phonopy-aiida >= 1.2.0
+aiida-phonopy >= 1.2.0
+aiida-fleur >= 2.0.0
+git+https://github.com/mpds-io/ab_initio_calculations
