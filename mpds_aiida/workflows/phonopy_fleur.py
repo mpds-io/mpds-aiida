@@ -180,8 +180,11 @@ class FleurForcesWorkChain(WorkChain):
                 lines = handle.readlines()
             forces = []
             for line in lines:
-                if "force" in line:
-                    parts = line.split()
+                parts = line.split()
+                # Expecting lines with 4 parts: 3 floats and a label "force"
+                # e.g.   -9.3614763067792050E-004   0.0000000000000000        0.0000000000000000      force
+                # standart for fleur FORCES output
+                if len(parts) == 4 and parts[-1] == "force":
                     try:
                         vec = [
                             float(parts[0]),
@@ -189,8 +192,12 @@ class FleurForcesWorkChain(WorkChain):
                             float(parts[2]),
                         ]
                         forces.append(vec)
-                    except Exception:
-                        continue
+                    except ValueError as e:
+                        self.report(f"Could not parse force line: {line}")
+                        raise e
+                else:
+                    continue
+
             forces_dict = {
                 f"forces_{structure_number if isinstance(structure_number, (int, str)) else structure_number.value}": forces
             }
