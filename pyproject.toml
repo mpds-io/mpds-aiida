@@ -32,11 +32,13 @@ dependencies = [
     "ase>=3.19",
     "jsonschema<=3.2.0",
     "phonopy==2.19.1",
+    "yascheduler >= 1.0.12",
     "aiida-phonopy>=1.2.0",
     "aiida-fleur>=2.0.0",
     "aiida-core>=1.0.1",
     "mpds_client",
-    "aiida-reoptimize @ git+https://github.com/mpds-io/aiida-reoptimize"
+    "aiida-reoptimize @ git+https://github.com/mpds-io/aiida-reoptimize",
+    "aiida-crystal-dft @ git+https://github.com/tilde-lab/aiida-crystal-dft"
 ]
 
 [project.optional-dependencies]
@@ -58,3 +60,5 @@ include = ["mpds_aiida*"]
 "crystal.mpds" = "mpds_aiida.workflows.mpds:MPDSStructureWorkchain"
 "crystal.cif" = "mpds_aiida.workflows.cif:CIFStructureWorkchain"
 "crystal.aiida" = "mpds_aiida.workflows.aiida:AiidaStructureWorkchain"
+"phonopy.fleur" = "mpds_aiida.workflows.phonopy_fleur:PhonopyFleurWorkChain"
+"fleur.forces" = "mpds_aiida.workflows.phonopy_fleur:FleurForcesWorkChain"
