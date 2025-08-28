@@ -1,13 +1,12 @@
 import numpy as np
-from ab_initio_calculations.utils.fleur_utils import Fleur_setup
 from aiida.engine import ExitCode, ToContext, WorkChain
 from aiida.orm import (
     ArrayData,
     Bool,
     Dict,
+    Int,
     RemoteData,
     Str,
-    Int,
     StructureData,
     load_code,
 )
@@ -16,12 +15,16 @@ from aiida_fleur.tools.common_fleur_wf import get_inputs_fleur
 from aiida_fleur.workflows.base_fleur import FleurBaseWorkChain
 from aiida_fleur.workflows.scf import FleurScfWorkChain
 from aiida_phonopy.workflows.phonopy import PhonopyWorkChain
-
-from mpds_aiida.utils.magmoms import (
+from aiida_reoptimize.structure.fleur_utils import (
+    Fleur_setup,
     convert_xml_to_FleurInpData,
+)
+from aiida_reoptimize.structure.magmoms_utils import (
     reverse_structure_data,
 )
+from ase.units import Bohr, Hartree
 
+HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM = Hartree / Bohr  # 27.211386245988 / 0.529177210903
 
 class FleurForcesWorkChain(WorkChain):
     """
@@ -91,26 +94,21 @@ class FleurForcesWorkChain(WorkChain):
         """
         Run FleurSCFWorkChain.
         """
-        # to get rid of extra input parameters, we build new inputs dict
-        inputs = {
-            "fleur": self.inputs.fleur
-        }
-        if "inpgen" in self.inputs:
-            inputs["inpgen"] = self.inputs.inpgen
-        if "calc_parameters" in self.inputs:
-            inputs["calc_parameters"] = self.inputs.calc_parameters
-        if "wf_parameters" in self.inputs:
-            inputs["wf_parameters"] = self.inputs.wf_parameters
-        if "options" in self.inputs:
-            inputs["options"] = self.inputs.options
-        if "settings" in self.inputs:
-            inputs["settings"] = self.inputs.settings
-        if "fleurinp" in self.inputs:
-            inputs["fleurinp"] = self.inputs.fleurinp
-        if ("structure" in self.inputs) and ("fleurinp" not in self.inputs):
+        # Build inputs dict, only including present keys
+        inputs = {"fleur": self.inputs.fleur}
+        for key in (
+            "inpgen",
+            "calc_parameters",
+            "wf_parameters",
+            "options",
+            "settings",
+            "fleurinp",
+            "remote_data",
+        ):
+            if key in self.inputs:
+                inputs[key] = self.inputs[key]
+        if "structure" in self.inputs and "fleurinp" not in self.inputs:
             inputs["structure"] = self.inputs.structure
-        if "remote_data" in self.inputs:
-            inputs["remote_data"] = self.inputs.remote_data
 
         future = self.submit(FleurScfWorkChain, **inputs)
         return ToContext(scf_wc=future)
@@ -294,7 +292,7 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
 
             if self.inputs.get("test_magmoms_run", Bool(False)).value:
                 if xml_input:
-                    last_lines = xml_input.split('\n')[-50:] # Get the last 20 lines
+                    last_lines = xml_input.split('\n')[-50:]
                     self.report("Last 50 lines of inp.xml:")
                     self.report("\n".join(last_lines))
                 return ExitCode(404)
@@ -330,7 +328,7 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                     forces = forces_out_dict[key]
                     forces_array = np.array(forces, dtype=float)
                     # Convert Hrt/Bohr to eV/Angstrom
-                    forces_array *= 51.4220823957
+                    forces_array *= HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM
                     array = ArrayData()
                     array.set_array("forces", forces_array)
                     array.store()

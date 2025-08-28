@@ -1,17 +1,20 @@
-from ab_initio_calculations.utils.fleur_utils import Fleur_setup
 from aiida import load_profile
 from aiida.plugins import DataFactory
-
-from mpds_aiida.utils.magmoms import (
+from aiida_reoptimize.structure.fleur_utils import (
+    Fleur_setup,
+    convert_xml_to_FleurInpData,
+)
+from aiida_reoptimize.structure.magmoms_utils import (
     ase_to_prim,
     ase_to_struct_prim,
     reverse_structure_data,
-    convert_xml_to_FleurInpData
 )
-
-from mpds_aiida.workflows.phonopy_fleur import PhonopyFleurWorkChain, FleurForcesWorkChain
-
 from ase.build import bulk
+
+from mpds_aiida.workflows.phonopy_fleur import (
+    FleurForcesWorkChain,
+    PhonopyFleurWorkChain,
+)
 
 load_profile()
 
@@ -131,11 +134,9 @@ def test_phonopy_fleur_with_magmoms_3():
         print(xml_input) # Check it by atomic coordinates
 
 def test_forces_magmoms():
-    from aiida.orm import Dict, Str
-    from aiida.engine import run
-
-
     from aiida import load_profile
+    from aiida.engine import run
+    from aiida.orm import Dict, Str
 
     load_profile()
 
@@ -171,11 +172,9 @@ def test_forces_magmoms():
     print(f"finished: {future.node_pk}")
 
 def test_phonopy_magmoms():
-    from aiida.orm import Dict, Str, Bool, load_code
-    from aiida.engine import run_get_node
-
-
     from aiida import load_profile
+    from aiida.engine import run_get_node
+    from aiida.orm import Bool, Dict, load_code
 
     load_profile()
 
@@ -214,12 +213,14 @@ def test_phonopy_magmoms():
     # h = node.outputs.phonopy_data.get_phonopy_instance()
     # ph.produce_force_constants()
     # ph.auto_band_structure(plot=True).savefig("F_AFM_band_structure.png")
-    
 
 if __name__ == "__main__":
     # test_fleur_inp_1()
+    # test_fleur_inp_2()
     # test_fleur_inp_3()
+    # test_phonopy_fleur_with_magmoms_1()
+    # test_phonopy_fleur_with_magmoms_2()
     # test_phonopy_fleur_with_magmoms_3()
     # test_forces_magmoms()
-    test_phonopy_magmoms()
+    # test_phonopy_magmoms()
     pass
