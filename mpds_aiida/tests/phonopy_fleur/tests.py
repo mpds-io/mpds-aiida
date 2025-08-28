@@ -209,7 +209,7 @@ def test_phonopy_magmoms():
             "parameters": Dict({"band": "auto"}),
         }}
 
-    results, node = run_get_node(PhonopyFleurWorkChain, **inputs)
+    results, node = run_get_node(PhonopyFleurWorkChain, **inputs)  # noqa: F841
     # h = node.outputs.phonopy_data.get_phonopy_instance()
     # ph.produce_force_constants()
     # ph.auto_band_structure(plot=True).savefig("F_AFM_band_structure.png")
