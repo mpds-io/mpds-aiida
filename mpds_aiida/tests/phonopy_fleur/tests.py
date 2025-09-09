@@ -159,8 +159,8 @@ def test_forces_magmoms():
     # setup FleurScfWorkChain inputs
 
     wf_relax_scf = Dict(dict={
-            'fleur_runmax': 1,
-            'itmax_per_run': 50})
+            'fleur_runmax': 1,  # to restart up to X times, can be 5
+            'itmax_per_run': 50})  # SCF iterations per run, can be 100
 
     # Submit FleurScfWorkChain
     future = run(
