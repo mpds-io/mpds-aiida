@@ -1,0 +1,32 @@
+codes:
+  fleur: fleur@cluster
+  inpgen: inpgen@cluster
+options:
+  need_phonons: true
+  optimize_structure: true
+  optimizer: "CG"
+  calculator: "relax"
+default:
+  scf:
+    wf_parameters:
+      fleur_runmax: 4
+      itmax_per_run: 60
+      mode: "energy"
+  relax:
+    wf_parameters:
+      force_criterion: 0.01
+      relax_iter: 8
+    scf:
+      wf_parameters:
+        fleur_runmax: 3
+        itmax_per_run: 50
+        mode: "force"
+calculations:
+  optimize:
+    parameters:
+      algorithm_settings:
+        tolerance: 1e-1
+  phonons:
+    parameters:
+      displacement_distance: 0.001
+      supercell_matrix: [[2,0,0],[0,2,0],[0,0,2]]
