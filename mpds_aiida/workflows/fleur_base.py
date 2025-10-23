@@ -9,18 +9,19 @@ from aiida_crystal_dft.utils import recursive_update
 from ..common import get_initial_parameters_from_structure, get_template
 from .phonopy_fleur import PhonopyFleurWorkChain
 
-# # TODO turn it into a nested dict
+# TODO turn it into a nested dict
+# TODO Fix issues with CG optimizer
 OPTIMIZERS_SCF = {
     "Adam": "aiida_reoptimize.AdamFleurSCFOptimizer",
     "RMSprop": "aiida_reoptimize.RMSpropFleurSCFOptimizer",
-    "CG": "aiida_reoptimize.CDGFleurSCFOptimizer",
+    # "CG": "aiida_reoptimize.CDGFleurSCFOptimizer",
     "BFGS": "aiida_reoptimize.BFGSFleurSCFOptimizer",
 }
 
 OPTIMIZERS_RELAX = {
     "Adam": "aiida_reoptimize.AdamFleurRelaxOptimizer",
     "RMSprop": "aiida_reoptimize.RMSpropFleurRelaxOptimizer",
-    "CG": "aiida_reoptimize.CDGFleurRelaxOptimizer",
+    # "CG": "aiida_reoptimize.CDGFleurRelaxOptimizer",
     "BFGS": "aiida_reoptimize.BFGSFleurRelaxOptimizer",
 }
 
