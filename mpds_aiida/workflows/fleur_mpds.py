@@ -41,6 +41,10 @@ class MPDSFleurStructureWorkChain(MPDSFleurWorkChain):
         return f"{formula}/{sgs}"
 
     def get_geometry(self):
+
+        max_retries = 5
+        attempt = 0
+
         api_key = os.getenv('MPDS_KEY')
         if not api_key:
             return self.exit_codes.ERROR_NO_MPDS_API_KEY
@@ -53,19 +57,25 @@ class MPDSFleurStructureWorkChain(MPDSFleurWorkChain):
         else:
             query_dict['classes'] = 'non-disordered'
 
-        try:
-            answer = client.get_data(
-                query_dict,
-                fields={'S': ['cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']}
-            )
-        except APIError as ex:
-            if ex.code == 429:
-                time.sleep(random.choice([2 * 2**m for m in range(5)]))
-                return self.get_geometry()
-            else:
-                return self.exit_codes.ERROR_API_ERROR
-        except ServerNotFoundError:
-            return self.exit_codes.ERROR_SERVER_NOT_FOUND
+        while attempt < max_retries:
+            attempt += 1
+            try:
+                answer = client.get_data(
+                    query_dict,
+                    fields={'S': ['cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']}
+                )
+                break
+            except APIError as ex:
+                if ex.code == 429 and attempt != max_retries:
+                    delay = 2 * (2 * attempt)
+                    time.sleep(delay)
+                    continue
+                else:
+                    # Raise error when attemp == max_retries or other API errors
+                    self.report(f'MPDS API error: {str(ex)} (after {attempt} attempts)')
+                    return self.exit_codes.ERROR_API_ERROR
+            except ServerNotFoundError:
+                return self.exit_codes.ERROR_SERVER_NOT_FOUND
 
         structs = [client.compile_crystal(line, flavor='ase') for line in answer]
         structs = list(filter(None, structs))
@@ -73,9 +83,10 @@ class MPDSFleurStructureWorkChain(MPDSFleurWorkChain):
             return self.exit_codes.ERROR_NO_HITS
 
         minimal_struct = min(len(s) for s in structs)
-        cells = np.array([s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct])
+        candidates = [s for s in structs if len(s) == minimal_struct]
+        cells = np.array([s.get_cell().reshape(9) for s in candidates])
         median_cell = np.median(cells, axis=0)
         median_idx = int(np.argmin(np.linalg.norm(cells - median_cell, axis=1)))
-        ase_struct = structs[median_idx]
+        ase_struct = candidates[median_idx]
 
         return get_data_class('structure')(ase=ase_struct)
