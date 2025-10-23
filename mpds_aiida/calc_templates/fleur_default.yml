@@ -4,7 +4,7 @@ codes:
 options:
   need_phonons: true
   optimize_structure: true
-  optimizer: "CG"
+  optimizer: "BFGS"
   calculator: "relax"
 default:
   scf:
