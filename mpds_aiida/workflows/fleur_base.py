@@ -61,10 +61,13 @@ class MPDSFleurWorkChain(WorkChain):
 
     def init_inputs(self):
         config_path = self.inputs.config_file
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Config file {config_path} not found")
+        try:
+            options = get_template(config_path)
+        except Exception:
+            raise FileNotFoundError(
+                f"Config file '{config_path}' not found"
+            )
 
-        options = get_template(config_path)
         user_opts = self.inputs.workchain_options.get_dict()
         if user_opts:
             recursive_update(options, user_opts)
