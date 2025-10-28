@@ -1,6 +1,6 @@
 codes:
-  fleur: fleur@cluster
-  inpgen: inpgen@cluster
+  fleur: fleur@yascheduler
+  inpgen: inpgen@yascheduler
 options:
   need_phonons: true
   optimize_structure: true
