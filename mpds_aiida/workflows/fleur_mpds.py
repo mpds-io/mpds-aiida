@@ -1,12 +1,16 @@
 import os
 import time
+
 import numpy as np
 from aiida.engine import ExitCode
 from aiida.orm import Dict
-from aiida_crystal_dft.utils import get_data_class
-from mpds_client import MPDSDataRetrieval, APIError
+from aiida_crystal_dft.utils import get_data_class, recursive_update
 from httplib2 import ServerNotFoundError
-from .fleur_base import MPDSFleurWorkChain
+from mpds_client import APIError, MPDSDataRetrieval
+
+from mpds_aiida.workflows.fleur_base import MPDSFleurWorkChain
+
+from ..common import get_initial_parameters_from_structure, get_template
 
 
 class MPDSFleurStructureWorkChain(MPDSFleurWorkChain):
@@ -26,23 +30,44 @@ class MPDSFleurStructureWorkChain(MPDSFleurWorkChain):
         struct_result = self.get_geometry()
         if isinstance(struct_result, ExitCode):
             return struct_result
-
         self.ctx.structure = struct_result
         self.ctx.phase_label = self._build_phase_label()
 
-        # Initialize other inputs from parent
-        super().init_inputs()
+        # Load config file and options 
+        # (I have to move it here because in fleur base this logic require structure and phase_label)
+        config_path = self.inputs.config_file.value  # this is still valid
+        try:
+            options = get_template(config_path)
+        except Exception:
+            raise FileNotFoundError(f"Config file '{config_path}' not found")
+
+        user_opts = self.inputs.workchain_options.get_dict()
+        if user_opts:
+            recursive_update(options, user_opts)
+        self.ctx.config = options
+
+        # Load codes
+        self.ctx.codes = {}
+        for name, label in options["codes"].items():
+            self.ctx.codes[name] = label
+
+        # Flags
+        self.ctx.need_phonons = options["options"].get("need_phonons", False)
+        self.ctx.optimize = options["options"].get("optimize_structure", True)
+        self.ctx.calculator_type = options["options"].get("calculator", "scf")
+        self.ctx.optimizer_name = options["options"].get("optimizer", "BFGS")
+
+        # Auto-detect initial parameters
+        ase_struct = self.ctx.structure.get_ase()
+        params, _ = get_initial_parameters_from_structure(ase_struct)
+        self.ctx.initial_parameters = params
 
     def _build_phase_label(self):
         query = self.inputs.mpds_query.get_dict()
-        try:
-            formula = query['formulae']
-            sgs = query.get['sgs']
-        except KeyError:
+        if 'formulae' not in query or 'sgs' not in query:
             raise ValueError("Query must contain both 'formulae' and 'sgs'")
-        except Exception as e:
-            self.report(f"Unexpected error when building phase label: {str(e)}")
-            raise e
+        formula = query['formulae']
+        sgs = query['sgs']
         return f"{formula}/{sgs}"
 
     def get_geometry(self):
@@ -94,4 +119,4 @@ class MPDSFleurStructureWorkChain(MPDSFleurWorkChain):
         median_idx = int(np.argmin(np.linalg.norm(cells - median_cell, axis=1)))
         ase_struct = candidates[median_idx]
 
-        return get_data_class('structure')(ase=ase_struct)
+        return get_data_class('core.structure')(ase=ase_struct)

@@ -1,8 +1,7 @@
-import os
 from copy import deepcopy
 
 from aiida.engine import ToContext, WorkChain, if_
-from aiida.orm import Dict, StructureData, load_code, load_node
+from aiida.orm import Dict, StructureData, Str, load_node
 from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
 
@@ -38,15 +37,15 @@ class MPDSFleurWorkChain(WorkChain):
         )
         spec.input(
             "config_file",
-            valid_type=str,
+            valid_type=Str,
             required=False,
-            default="fleur_default.yml",
+            default=lambda: Str("fleur_default.yml"),
         )
         spec.input(
             "phase_label",
-            valid_type=str,
+            valid_type=Str,
             required=False,
-            default="unknown_phase",
+            default=lambda: Str("unknown_phase"),
         )
 
         spec.outline(
@@ -60,7 +59,7 @@ class MPDSFleurWorkChain(WorkChain):
         spec.output("phonon_results", valid_type=Dict, required=False)
 
     def init_inputs(self):
-        config_path = self.inputs.config_file
+        config_path = self.inputs.config_file.value
         try:
             options = get_template(config_path)
         except Exception:
@@ -74,12 +73,13 @@ class MPDSFleurWorkChain(WorkChain):
 
         self.ctx.config = options
         self.ctx.structure = self.inputs.structure
-        self.ctx.phase_label = self.inputs.phase_label
+        self.ctx.phase_label = self.inputs.phase_label.value
 
-        # Load codes
+        # Just sends codes labels, optimizer must load them, 
+        # since loaded_code is not serializable
         self.ctx.codes = {}
         for name, label in options["codes"].items():
-            self.ctx.codes[name] = load_code(label)
+            self.ctx.codes[name] = label
 
         # Flags
         self.ctx.need_phonons = options["options"].get("need_phonons", False)
@@ -106,10 +106,10 @@ class MPDSFleurWorkChain(WorkChain):
         calc_params = deepcopy(
             self.ctx.config["default"][self.ctx.calculator_type]
         )
-        calc_params.update({
+        calc_params.update({"codes":{
             "fleur": self.ctx.codes["fleur"],
             "inpgen": self.ctx.codes["inpgen"],
-        })
+        }})
 
         # algorithm_settings from config
         algo_settings = (
