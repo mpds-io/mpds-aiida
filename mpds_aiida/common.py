@@ -14,30 +14,33 @@ from aiida_crystal_dft.io.basis import BasisFile # NB only used to determine ecp
 from mpds_client import APIError
 
 from mpds_aiida import TEMPLATE_DIR
+from .spacegroups import sg_to_crystal_system
 
 
 verbatim_basis = namedtuple("basis", field_names="content, all_electron")
 
 
 def get_initial_parameters_from_structure(ase_struct):
-    dataset = get_symmetry_dataset(ase_struct, symprec=1e-3)
+    dataset = get_symmetry_dataset(ase_struct, symprec=1e-5)
     sg_number = dataset['number']
+    system = sg_to_crystal_system(sg_number)
     cellpar = cell_to_cellpar(ase_struct.cell)
 
-    if 195 <= sg_number <= 230:
-        return [cellpar[0]], 'cubic'
-    elif 75 <= sg_number <= 142:
-        return [cellpar[0], cellpar[2]], 'tetragonal'
-    elif 168 <= sg_number <= 194:
-        return [cellpar[0], cellpar[2]], 'hexagonal'
-    elif 143 <= sg_number <= 167:
-        return [cellpar[0], cellpar[2]], 'trigonal'
-    elif 16 <= sg_number <= 74:
-        return [cellpar[0], cellpar[1], cellpar[2]], 'orthorhombic'
-    elif 3 <= sg_number <= 15:
-        return [cellpar[0], cellpar[1], cellpar[2], cellpar[4]], 'monoclinic'
+    if system == 'cubic':
+        cell = [cellpar[0]]
+    elif system == 'tetragonal':
+        cell = [cellpar[0], cellpar[2]]
+    elif system == 'hexagonal':
+        cell = [cellpar[0], cellpar[2]]
+    elif system == 'trigonal':
+        cell = [cellpar[0], cellpar[2]]
+    elif system == 'orthorhombic':
+        cell = [cellpar[0], cellpar[1], cellpar[2]]
+    elif system == 'monoclinic':
+        cell = [cellpar[0], cellpar[1], cellpar[2], cellpar[4]]
     else:
-        return cellpar.tolist(), 'triclinic'
+        cell = cellpar.tolist()
+    return cell, system
 
 def guess_metal(ase_obj):
     """

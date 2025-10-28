@@ -9,20 +9,19 @@ from aiida_crystal_dft.utils import recursive_update
 from ..common import get_initial_parameters_from_structure, get_template
 from .phonopy_fleur import PhonopyFleurWorkChain
 
-# TODO turn it into a nested dict
-# TODO Fix issues with CG optimizer
-OPTIMIZERS_SCF = {
-    "Adam": "aiida_reoptimize.AdamFleurSCFOptimizer",
-    "RMSprop": "aiida_reoptimize.RMSpropFleurSCFOptimizer",
-    # "CG": "aiida_reoptimize.CDGFleurSCFOptimizer",
-    "BFGS": "aiida_reoptimize.BFGSFleurSCFOptimizer",
-}
-
-OPTIMIZERS_RELAX = {
-    "Adam": "aiida_reoptimize.AdamFleurRelaxOptimizer",
-    "RMSprop": "aiida_reoptimize.RMSpropFleurRelaxOptimizer",
-    # "CG": "aiida_reoptimize.CDGFleurRelaxOptimizer",
-    "BFGS": "aiida_reoptimize.BFGSFleurRelaxOptimizer",
+OPTIMIZERS = {
+    "scf": {
+        "Adam": "aiida_reoptimize.AdamFleurSCFOptimizer",
+        "RMSprop": "aiida_reoptimize.RMSpropFleurSCFOptimizer",
+        "BFGS": "aiida_reoptimize.BFGSFleurSCFOptimizer",
+        "CG": "aiida_reoptimize.CGFleurSCFOptimizer",
+    },
+    "relax": {
+        "Adam": "aiida_reoptimize.AdamFleurRelaxOptimizer",
+        "RMSprop": "aiida_reoptimize.RMSpropFleurRelaxOptimizer",
+        "BFGS": "aiida_reoptimize.BFGSFleurRelaxOptimizer",
+        "CG": "aiida_reoptimize.CGFleurRelaxOptimizer",
+    },
 }
 
 
@@ -98,22 +97,7 @@ class MPDSFleurWorkChain(WorkChain):
             self.ctx.optimized_structure = self.ctx.structure
             return
 
-        # TODO make optimizer selection more flexible
-        if self.ctx.calculator_type == "scf":
-            opt_map = OPTIMIZERS_SCF
-        elif self.ctx.calculator_type == "relax":
-            opt_map = OPTIMIZERS_RELAX
-        else:
-            raise ValueError(
-                f"Unsupported calculator type: {self.ctx.calculator_type}"
-            )
-
-        if self.ctx.optimizer_name not in opt_map:
-            raise ValueError(
-                f"Optimizer {self.ctx.optimizer_name} not supported for {self.ctx.calculator_type}"
-            )
-
-        optimizer_wc = WorkflowFactory(opt_map[self.ctx.optimizer_name])
+        optimizer_wc = self.get_optimizer(self.ctx.optimizer_name, self.ctx.calculator_type)
 
         # Prepearing to start calcs
         calc_params = deepcopy(
@@ -192,3 +176,21 @@ class MPDSFleurWorkChain(WorkChain):
 
         future = self.submit(PhonopyFleurWorkChain, **phonon_inputs)
         return ToContext(phonons=future)
+
+    def get_optimizer(self, optimizer_type: str, calculation_type: str):
+        """
+        Get optimizer class with proper error handling.
+
+        Args:
+            optimizer_type (str): Type of optimizer (Adam, RMSprop, BFGS, CG)
+            calculation_type (str): Type of calculation (scf, relax)
+
+        Returns:
+            WorkflowFactory: Optimizer workflow factory
+        """
+        try:
+            optimizer_path = OPTIMIZERS[calculation_type][optimizer_type]
+            return WorkflowFactory(optimizer_path)
+        except KeyError:
+            self.report(f"Invalid optimizer {optimizer_type} or calculation type {calculation_type}")
+            return WorkflowFactory(OPTIMIZERS[calculation_type]["BFGS"])  # fallback to BFGS

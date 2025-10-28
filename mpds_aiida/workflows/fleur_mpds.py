@@ -1,6 +1,5 @@
 import os
 import time
-import random
 import numpy as np
 from aiida.engine import ExitCode
 from aiida.orm import Dict
@@ -36,8 +35,14 @@ class MPDSFleurStructureWorkChain(MPDSFleurWorkChain):
 
     def _build_phase_label(self):
         query = self.inputs.mpds_query.get_dict()
-        formula = query.get('formulae', 'unknown')
-        sgs = query.get('sgs', 'unknown')
+        try:
+            formula = query['formulae']
+            sgs = query.get['sgs']
+        except KeyError:
+            raise ValueError("Query must contain both 'formulae' and 'sgs'")
+        except Exception as e:
+            self.report(f"Unexpected error when building phase label: {str(e)}")
+            raise e
         return f"{formula}/{sgs}"
 
     def get_geometry(self):
