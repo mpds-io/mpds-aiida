@@ -24,7 +24,10 @@ from aiida_reoptimize.structure.magmoms_utils import (
 )
 from ase.units import Bohr, Hartree
 
-HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM = Hartree / Bohr  # 27.211386245988 / 0.529177210903
+HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM = (
+    Hartree / Bohr
+)  # 27.211386245988 / 0.529177210903
+
 
 class FleurForcesWorkChain(WorkChain):
     """
@@ -65,7 +68,9 @@ class FleurForcesWorkChain(WorkChain):
         spec.input("fleurinp", required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("structure_label", valid_type=Str, required=False)
-        spec.input("f_level", valid_type=Int, required=False, default= lambda: Int(0))
+        spec.input(
+            "f_level", valid_type=Int, required=False, default=lambda: Int(0)
+        )
         spec.outline(
             cls.load_codes,
             cls.run_scf,
@@ -144,7 +149,19 @@ class FleurForcesWorkChain(WorkChain):
             options = (
                 self.inputs.options.get_dict()
                 if "options" in self.inputs
-                else {}
+                else {
+                    "custom_scheduler_commands": "",
+                    "environment_variables": {},
+                    "import_sys_environment": False,
+                    "max_wallclock_seconds": 21600,
+                    "optimize_resources": True,
+                    "queue_name": "",
+                    "resources": {
+                        "num_machines": 1,
+                        "num_mpiprocs_per_machine": 1,
+                    },
+                    "withmpi": True,
+                }
             )
             label = "Fleur forces calculation"
             description = "Fleur run for forces after SCF"
@@ -246,7 +263,8 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             valid_type=Bool,
             required=False,
             default=lambda: Bool(False),
-            help="If True, prints info from fleur inp.xml and stops without running calculations.",)
+            help="If True, prints info from fleur inp.xml and stops without running calculations.",
+        )
 
         spec.exit_code(
             402,
@@ -263,7 +281,8 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
         spec.exit_code(
             404,
             "TEST_MAGMOMS_RUN",
-            message="TEST_MAGMOMS_RUN is set to True, so the workflow stopped after printing inp.xml info.",)
+            message="TEST_MAGMOMS_RUN is set to True, so the workflow stopped after printing inp.xml info.",
+        )
 
     def run_forces(self):
         """
@@ -272,7 +291,11 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
         # Get pristine supercell and all displaced supercells
         supercells_dict = self.ctx.preprocess_data.calcfunctions.get_supercells_with_displacements()
         futures = {}
-        magmoms_mapper = self.inputs["magmoms_mapper"].get_dict() if self.inputs.get("magmoms_mapper", None) else None
+        magmoms_mapper = (
+            self.inputs["magmoms_mapper"].get_dict()
+            if self.inputs.get("magmoms_mapper", None)
+            else None
+        )
 
         inputs = self.inputs.fleur_parameters.get_dict()
         xml_input = None
@@ -286,7 +309,7 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                 atoms = reverse_structure_data(structure, magmoms_mapper)
             else:
                 atoms = structure.get_ase()
-                
+
             fleur_setup = Fleur_setup(atoms)
             error = fleur_setup.validate()
             if error:
@@ -299,7 +322,7 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
 
             if self.inputs.get("test_magmoms_run", Bool(False)).value:
                 if xml_input:
-                    last_lines = xml_input.split('\n')[-50:]
+                    last_lines = xml_input.split("\n")[-50:]
                     self.report("Last 50 lines of inp.xml:")
                     self.report("\n".join(last_lines))
                 return ExitCode(404)
@@ -307,10 +330,13 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             inputs["structure_label"] = Str(number)
             futures[number] = self.submit(FleurForcesWorkChain, **inputs)
 
-        self.report(f'Sending FleurForcesWorkChain for supercells: {list(futures.keys())}')
+        self.report(
+            f"Sending FleurForcesWorkChain for supercells: {list(futures.keys())}"
+        )
         # Store all futures in context for later inspection
         return ToContext(**{
-            f"calc_forces_{number}": future for number, future in futures.items()
+            f"calc_forces_{number}": future
+            for number, future in futures.items()
         })
 
     def inspect_forces(self):
@@ -329,7 +355,9 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             self.report(f"for {label} get forces_wc: {forces_wc}")
             if forces_wc is not None and "forces" in forces_wc.outputs:
                 forces_out_dict = forces_wc.outputs["forces"].get_dict()
-                self.report(f"forces_out_dict keys: {list(forces_out_dict.keys())}")
+                self.report(
+                    f"forces_out_dict keys: {list(forces_out_dict.keys())}"
+                )
                 key = f"forces_{label}"
                 if key in forces_out_dict:
                     forces = forces_out_dict[key]
@@ -341,7 +369,9 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                     array.store()
                     forces_dict[key] = array
                 else:
-                    self.report(f"Key {key} not found in forces_out_dict for {label}")
+                    self.report(
+                        f"Key {key} not found in forces_out_dict for {label}"
+                    )
                     return ExitCode(402, f"FORCES data not found for {label}")
             else:
                 self.report(f"No forces data for {label}")
