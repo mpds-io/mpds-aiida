@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from aiida.engine import ToContext, WorkChain, if_
-from aiida.orm import Dict, StructureData, Str, load_node
+from aiida.orm import Dict, StructureData, Str, Int, load_node
 from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
 
@@ -122,7 +122,7 @@ class MPDSFleurWorkChain(WorkChain):
         optimizer_inputs = {
             "structure": self.ctx.structure,
             # TODO Move it to config
-            "itmax": self.inputs.workchain_options.get("itmax", 50),
+            "itmax": self.inputs.workchain_options.get("itmax", Int(50)),
             "parameters": Dict(
                 dict={
                     "initial_parameters": self.ctx.initial_parameters,
