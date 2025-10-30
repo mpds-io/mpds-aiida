@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from aiida.engine import ToContext, WorkChain, if_
-from aiida.orm import Dict, StructureData, Str, Int, load_node
+from aiida.orm import Dict, StructureData, Str, Int, load_node, load_code
 from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
 
@@ -85,7 +85,7 @@ class MPDSFleurWorkChain(WorkChain):
         self.ctx.need_phonons = options["options"].get("need_phonons", False)
         self.ctx.optimize = options["options"].get("optimize_structure", True)
         self.ctx.calculator_type = options["options"].get("calculator", "scf")
-        self.ctx.optimizer_name = options["options"].get("optimizer", "BFGS")
+        self.ctx.optimizer_name = options["options"].get("optimizer", "Adam")
 
         # Auto-detect initial parameters
         ase_struct = self.ctx.structure.get_ase()
@@ -95,6 +95,7 @@ class MPDSFleurWorkChain(WorkChain):
     def need_phonons(self):
         return self.ctx.need_phonons and self.ctx.optimize
 
+    # TODO Сделать так чтобы параметры можно было перезаписывать из внешнего инпута
     def run_optimization(self):
         if not self.ctx.optimize:
             self.ctx.optimized_structure = self.ctx.structure
@@ -121,8 +122,7 @@ class MPDSFleurWorkChain(WorkChain):
 
         optimizer_inputs = {
             "structure": self.ctx.structure,
-            # TODO Move it to config
-            "itmax": self.inputs.workchain_options.get("itmax", Int(50)),
+            "itmax": self.ctx.config.get("itmax", Int(100)),
             "parameters": Dict(
                 dict={
                     "initial_parameters": self.ctx.initial_parameters,
@@ -161,14 +161,16 @@ class MPDSFleurWorkChain(WorkChain):
             "fleur_parameters": Dict(
                 dict={
                     "fleur": self.ctx.codes["fleur"],
-                    "inpgen": self.ctx.codes["inpgen"],
                     **self.ctx.config["default"]["scf"],
                 }
             ),
             "phonopy_parameters": Dict(
+                # TODO add all parameters
                 dict={
                     "supercell_matrix": phonon_params["supercell_matrix"],
-                    "distance": phonon_params["displacement_distance"],
+                    "phonopy": {
+                        "code": load_code(self.ctx.codes["phonopy"])
+                        },
                 }
             ),
         }
