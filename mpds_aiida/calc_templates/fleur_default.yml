@@ -1,11 +1,13 @@
 codes:
   fleur: fleur@yascheduler
   inpgen: inpgen@local_machine
+  phonopy: phonopy@local_machine
 options:
   need_phonons: true
   optimize_structure: true
   optimizer: "BFGS"
   calculator: "relax"
+  itmax: 100
 default:
   scf:
     wf_parameters:
@@ -28,5 +30,4 @@ calculations:
         tolerance: 1e-1
   phonons:
     parameters:
-      displacement_distance: 0.001
       supercell_matrix: [[2,0,0],[0,2,0],[0,0,2]]
