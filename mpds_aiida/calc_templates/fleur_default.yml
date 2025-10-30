@@ -27,7 +27,7 @@ calculations:
   optimize:
     parameters:
       algorithm_settings:
-        tolerance: 1e-1
+        tolerance: 0.1
   phonons:
     parameters:
       supercell_matrix: [[2,0,0],[0,2,0],[0,0,2]]
