@@ -13,13 +13,13 @@ OPTIMIZERS = {
         "Adam": "aiida_reoptimize.AdamFleurSCFOptimizer",
         "RMSprop": "aiida_reoptimize.RMSpropFleurSCFOptimizer",
         "BFGS": "aiida_reoptimize.BFGSFleurSCFOptimizer",
-        "CG": "aiida_reoptimize.CGFleurSCFOptimizer",
+        "CG": "aiida_reoptimize.CDGFleurSCFOptimizer",
     },
     "relax": {
         "Adam": "aiida_reoptimize.AdamFleurRelaxOptimizer",
         "RMSprop": "aiida_reoptimize.RMSpropFleurRelaxOptimizer",
         "BFGS": "aiida_reoptimize.BFGSFleurRelaxOptimizer",
-        "CG": "aiida_reoptimize.CGFleurRelaxOptimizer",
+        "CG": "aiida_reoptimize.CDGFleurRelaxOptimizer",
     },
 }
 
