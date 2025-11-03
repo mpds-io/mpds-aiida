@@ -153,7 +153,7 @@ class FleurForcesWorkChain(WorkChain):
                     "custom_scheduler_commands": "",
                     "environment_variables": {},
                     "import_sys_environment": False,
-                    "max_wallclock_seconds": 21600,
+                    "max_wallclock_seconds": 4 * 10**5,
                     "optimize_resources": True,
                     "queue_name": "",
                     "resources": {
