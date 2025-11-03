@@ -6,15 +6,48 @@ from collections import namedtuple
 import yaml
 from ase.data import chemical_symbols
 
+from ase.geometry import cell_to_cellpar
+from spglib import get_symmetry_dataset
+
 from aiida_crystal_dft.io.d12 import D12
 from aiida_crystal_dft.io.basis import BasisFile # NB only used to determine ecp
 from mpds_client import APIError
 
 from mpds_aiida import TEMPLATE_DIR
+from .spacegroups import sg_to_crystal_system
 
 
 verbatim_basis = namedtuple("basis", field_names="content, all_electron")
 
+
+def get_initial_parameters_from_structure(ase_struct):
+    cell = ase_struct.get_cell().array
+    positions = ase_struct.get_scaled_positions()
+    numbers = ase_struct.get_atomic_numbers()
+
+    dataset = get_symmetry_dataset(
+        (cell, positions, numbers),
+        symprec=1e-5
+    )
+    if dataset is None:
+        raise RuntimeError("spglib could not determine symmetry for the given structure")
+
+    sg_number = dataset['number']
+    system = sg_to_crystal_system(sg_number)
+    cellpar = cell_to_cellpar(cell)
+
+    if system == 'cubic':
+        cell = [cellpar[0]]
+    elif system in ('tetragonal', 'hexagonal', 'trigonal'):
+        cell = [cellpar[0], cellpar[2]]
+    elif system == 'orthorhombic':
+        cell = [cellpar[0], cellpar[1], cellpar[2]]
+    elif system == 'monoclinic':
+        cell = [cellpar[0], cellpar[1], cellpar[2], cellpar[4]]
+    else:  # triclinic
+        cell = cellpar.tolist()
+
+    return cell, system
 
 def guess_metal(ase_obj):
     """

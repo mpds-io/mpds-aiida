@@ -16,6 +16,7 @@ yml_dir = os.path.join(
     "calc_templates"
 )
 
+# XXX This code does not check for updates of the templates. Can cause issues if templates are updated.
 for f in glob.glob(yml_dir + os.sep + '*.yml'):
     yml_file = os.path.basename(f)
     if not os.path.isfile(os.path.join(TEMPLATE_DIR, yml_file)):

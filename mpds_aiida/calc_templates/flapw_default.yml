@@ -1,0 +1,33 @@
+codes:
+  fleur: fleur@yascheduler
+  inpgen: inpgen@local_machine
+  phonopy: phonopy@local_machine
+options:
+  need_phonons: true
+  optimize_structure: true
+  optimizer: "CG"
+  calculator: "relax"
+  itmax: 100
+default:
+  scf:
+    wf_parameters:
+      fleur_runmax: 4
+      itmax_per_run: 60
+      mode: "energy"
+  relax:
+    wf_parameters:
+      force_criterion: 0.01
+      relax_iter: 8
+    scf:
+      wf_parameters:
+        fleur_runmax: 3
+        itmax_per_run: 50
+        mode: "force"
+calculations:
+  optimize:
+    parameters:
+      algorithm_settings:
+        tolerance: 0.7
+  phonons:
+    parameters:
+      supercell_matrix: [[1, 1, 0], [-1, 1, 0], [0, 0, 2]]

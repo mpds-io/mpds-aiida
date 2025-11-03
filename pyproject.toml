@@ -63,3 +63,4 @@ include = ["mpds_aiida*"]
 "crystal.aiida" = "mpds_aiida.workflows.aiida:AiidaStructureWorkchain"
 "phonopy.fleur" = "mpds_aiida.workflows.phonopy_fleur:PhonopyFleurWorkChain"
 "fleur.forces" = "mpds_aiida.workflows.phonopy_fleur:FleurForcesWorkChain"
+"fleur.mpds" = "mpds_aiida.workflows.fleur_mpds:MPDSFleurStructureWorkChain"
