@@ -5,7 +5,7 @@ codes:
 options:
   need_phonons: true
   optimize_structure: true
-  optimizer: "BFGS"
+  optimizer: "CG"
   calculator: "relax"
   itmax: 100
 default:
@@ -27,7 +27,7 @@ calculations:
   optimize:
     parameters:
       algorithm_settings:
-        tolerance: 0.1
+        tolerance: 0.7
   phonons:
     parameters:
-      supercell_matrix: [[2,0,0],[0,2,0],[0,0,2]]
+      supercell_matrix: [[1, 1, 0], [-1, 1, 0], [0, 0, 2]]

@@ -39,7 +39,7 @@ class MPDSFleurWorkChain(WorkChain):
             "config_file",
             valid_type=Str,
             required=False,
-            default=lambda: Str("fleur_default.yml"),
+            default=lambda: Str("flapw_default.yml"),
         )
         spec.input(
             "phase_label",
