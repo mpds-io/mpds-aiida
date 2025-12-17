@@ -262,6 +262,10 @@ class MPDSCrystalWorkChain(WorkChain):
             'label': f"{workchain_label}: {calc_label}",
             'description': self.inputs.metadata.get('description', '')
         }
+        # Label in d12 file Fix:
+        inputs.parameters['label'] = inputs.metadata.get('label', 'CRYSTAL by AiiDA')
+        for item in inputs.restart_params.get_dict().keys():
+            inputs.restart_params[item]['label'] = inputs.metadata.get('label', 'CRYSTAL by AiiDA')
         # noinspection PyTypeChecker
         crystal_run = self.submit(BaseCrystalWorkChain, **inputs)
         return self.to_context(**{calculation: crystal_run})
