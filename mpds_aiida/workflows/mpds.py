@@ -3,14 +3,15 @@
 The MPDS workflow for AiiDA that gets structure with MPDS query
 """
 import os
-import time
 import random
+import time
 
 import numpy as np
-from httplib2 import ServerNotFoundError
-
 from aiida_crystal_dft.utils import get_data_class
-from mpds_client import MPDSDataRetrieval, APIError
+from httplib2 import ServerNotFoundError
+from mpds_client import APIError, MPDSDataRetrieval
+
+from ..chemical_formulae import parse_formula
 from .crystal import MPDSCrystalWorkChain
 
 
@@ -29,7 +30,7 @@ class MPDSStructureWorkChain(MPDSCrystalWorkChain):
         spec.exit_code(503, 'ERROR_NO_HITS', message='Request returned nothing')
         spec.exit_code(504, 'ERROR_SERVER_NOT_FOUND', message='MPDS server not found')
 
-    def get_geometry(self):
+    def get_geometry(self, elements_check=False):
         """ Getting geometry from MPDS database
         """
         # check for API key
@@ -50,6 +51,7 @@ class MPDSStructureWorkChain(MPDSCrystalWorkChain):
             answer = client.get_data(
                 query_dict,
                 fields={'S': [
+                    'chemical_formula',
                     'cell_abc',
                     'sg_n',
                     'basis_noneq',
@@ -69,7 +71,18 @@ class MPDSStructureWorkChain(MPDSCrystalWorkChain):
             self.report(f'MPDS API error: {str(ex)}')
             return self.exit_codes.ERROR_SERVER_NOT_FOUND
 
-        structs = [client.compile_crystal(line, flavor='ase') for line in answer]
+        structs = []
+        for line in answer:
+            if line:
+                structs.append(
+                    client.compile_crystal(
+                        line,
+                        flavor='ase',
+                        elements_check=elements_check,
+                        elements_counter=parse_formula(line[0])
+                        )
+                               )
+
         structs = list(filter(None, structs))
         if not structs:
             return self.exit_codes.ERROR_NO_HITS
