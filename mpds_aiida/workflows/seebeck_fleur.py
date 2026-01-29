@@ -3,17 +3,16 @@ import re
 
 import numpy as np
 from aiida.common import NotExistent
-from aiida.engine import ToContext, WorkChain, calcfunction, if_
+from aiida.engine import ToContext, WorkChain, if_
 from aiida.orm import (
     Code,
     Dict,
-    KpointsData,
     RemoteData,
     Str,
     StructureData,
     XyData,
+    load_code,
     load_node,
-    load_code
 )
 from aiida_fleur.data.fleurinp import (
     FleurinpData,
@@ -33,11 +32,12 @@ from scipy.special import expit
 
 AngsCubeToCmCube = 1e-24  # 1 A**3 = 1e-24 cm**3
 
+
 class FleurDOSLocalWorkChain(WorkChain):
     """
     WorkChain that:
     1. (Optional) Performs SCF convergence to obtain charge density
-    2. Calculates DOS with 48x48x48 k-mesh using Local.1/Local.2 files
+    2. Calculates DOS with 48x48x48 k-mesh
     3. Computes Seebeck coefficient from parsed DOS
 
     Supports three input configurations:
@@ -47,12 +47,13 @@ class FleurDOSLocalWorkChain(WorkChain):
     """
 
     _default_wf_para = {
-        # TODO Use this in SCF if needed
         "kpoints_mesh_dos": [48, 48, 48],  # ONLY for DOS calculation
         "sigma": 0.002,
-        "emin": -2.0,
-        "emax": 2.0,
+        "emin": -2.0,  # Hrt
+        "emax": 2.0,  # Hrt
         "numberPoints": 2000,
+        "mode": "dos",
+        "kpath": "skip",
         "add_comp_para": {
             "only_even_MPI": False,
             "max_queue_nodes": 20,
@@ -114,7 +115,6 @@ class FleurDOSLocalWorkChain(WorkChain):
         spec.output("output_dos_xy", valid_type=XyData, required=False)
         spec.output("output_seebeck", valid_type=Dict, required=False)
         spec.expose_outputs(FleurBaseWorkChain, namespace="dos_calc")
-        spec.expose_outputs(FleurScfWorkChain, namespace="scf", required=False)
 
         # Exit codes
         spec.exit_code(
@@ -174,7 +174,6 @@ class FleurDOSLocalWorkChain(WorkChain):
 
         # Validate FLEUR code
         try:
-            # TODO use existing logic
             test_and_get_codenode(self.inputs.fleur, "fleur.fleur")
         except ValueError as exc:
             self.report(f"Invalid FLEUR code: {exc}")
@@ -259,7 +258,7 @@ class FleurDOSLocalWorkChain(WorkChain):
         self.report("Launching SCF workchain to converge charge density...")
 
         # Get SCF inputs from exposed namespace
-        scf_inputs = self.expose_inputs(FleurScfWorkChain, namespace="scf")
+        scf_inputs = self.inputs.scf
 
         # Ensure structure or fleurinp is provided in SCF namespace
         if "structure" not in scf_inputs and "fleurinp" not in scf_inputs:
@@ -273,16 +272,12 @@ class FleurDOSLocalWorkChain(WorkChain):
         self.report(f"Submitted SCF workchain: PK={future.pk}")
         return ToContext(scf_wc=future)
 
-    # TODO: PERFORM TEST
     def prepare_dos_from_scf(self):
         """Prepare DOS calculation after successful SCF convergence"""
         # Check SCF success
         if not self.ctx.scf_wc.is_finished_ok:
             self.report(f"SCF workchain failed (PK={self.ctx.scf_wc.pk})")
             return self.exit_codes.ERROR_SCF_CALCULATION_FAILED
-
-        # Expose SCF outputs for provenance
-        self.out_many(self.expose_outputs(self.ctx.scf_wc, namespace="scf"))
 
         # Get remote folder from last FleurBaseWorkChain in SCF
         try:
@@ -299,7 +294,6 @@ class FleurDOSLocalWorkChain(WorkChain):
         )
         return
 
-    # TODO: PERFORM TEST
     def prepare_dos_from_remote(self):
         """Prepare DOS calculation using provided remote folder"""
         self.ctx.remote_for_dos = self.inputs.remote
@@ -363,6 +357,7 @@ class FleurDOSLocalWorkChain(WorkChain):
 
         # Set DOS mode parameters
         fleurmode.set_inpchanges({
+            "band": False,
             "dos": True,
             "minEnergy": self.ctx.wf_dict["emin"],
             "maxEnergy": self.ctx.wf_dict["emax"],
@@ -370,21 +365,18 @@ class FleurDOSLocalWorkChain(WorkChain):
             "numberPoints": self.ctx.wf_dict["numberPoints"],
         })
 
-        # Set k-point mesh EXCLUSIVELY for DOS calculation
-        kpoints = KpointsData()
-        kpoints.set_cell_from_structure(
-            self.ctx.fleurinp_base.get_structuredata_ncf()
+        # XXX https://aiida-fleur.readthedocs.io/en/latest/module_guide/code.html#aiida_fleur.data.fleurinpmodifier.FleurinpModifier.set_kpointmesh
+        fleurmode.set_kpointmesh(
+            mesh=self.ctx.wf_dict["kpoints_mesh_dos"], switch=True
         )
-        kpoints.set_kpoints_mesh(
-            self.ctx.wf_dict["kpoints_mesh_dos"]
-        )
-        # TODO TRY OTHER METHODS LIKE DENS
-        fleurmode.set_kpointsdata(kpoints, switch=True, kpoint_type="mesh")
 
         # Validate and freeze
         try:
             fleurmode.show(display=False, validate=True)
         except Exception as exc:
+            self.report(
+                f"Problematic XML snippet: {fleurmode.show(validate=False)}"
+            )
             self.report(f"Input validation failed: {exc}")
             return self.exit_codes.ERROR_INVALID_INPUT_FILE
 
@@ -401,7 +393,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             remote=self.ctx.remote_for_dos,
             fleurinp=fleurinp_dos,
             options=self.ctx.options,
-            # TODO Should be label in metadata?
+            # XXX Should label be in metadata?
             label=label,
             settings=settings,
             add_comp_para=self.ctx.wf_dict["add_comp_para"],
@@ -458,7 +450,7 @@ class FleurDOSLocalWorkChain(WorkChain):
                 self.ctx.dos_down = dos_data["spin_down"]
                 y_arrays.extend([dos_data["spin_up"], dos_data["spin_down"]])
                 y_names.extend(["spin_up", "spin_down"])
-                y_units = ["states/eV"]*3
+                y_units = ["states/eV"] * 3
 
             y_arrays = [np.array(i) for i in y_arrays]
 
@@ -498,9 +490,13 @@ class FleurDOSLocalWorkChain(WorkChain):
             elif hasattr(self.ctx, "fleurinp_base"):
                 # Try to get structure from fleurinp
                 try:
-                    structure = self.ctx.fleurinp_base.get_structuredata_ncf() # should return StructureData
+                    structure = (
+                        self.ctx.fleurinp_base.get_structuredata_ncf()
+                    )  # should return StructureData
                     volume_ang3 = structure.get_cell_volume()
-                    volume_cm3 = volume_ang3 * AngsCubeToCmCube # angs**3 → cm**3
+                    volume_cm3 = (
+                        volume_ang3 * AngsCubeToCmCube
+                    )  # angs**3 → cm**3
                 except Exception:
                     volume_cm3 = None
 
@@ -528,8 +524,14 @@ class FleurDOSLocalWorkChain(WorkChain):
                 )
 
                 # TODO DOUBLE CHECK THIS. tests shows it gives reasonable results
-                seebeck = (result1['N']*result1["seebeck_coefficient_uvk"] + result2['N']*result2["seebeck_coefficient_uvk"])/(result1['N'] + result2['N'])
-                result = {"seebeck_coefficient_uvk": seebeck, "N": result1['N'] + result2['N']}
+                seebeck = (
+                    result1["N"] * result1["seebeck_coefficient_uvk"]
+                    + result2["N"] * result2["seebeck_coefficient_uvk"]
+                ) / (result1["N"] + result2["N"])
+                result = {
+                    "seebeck_coefficient_uvk": seebeck,
+                    "N": result1["N"] + result2["N"],
+                }
             else:
                 result = calculate_seebeck(
                     energy_ev=self.ctx.dos_energy_ev,
@@ -557,8 +559,6 @@ class FleurDOSLocalWorkChain(WorkChain):
     def return_results(self):
         """Return final results with full provenance"""
         output_dict = {
-            "workflow_name": self.__class__.__name__,
-            "workflow_version": self._workflowversion,
             "kpoints_mesh_dos": self.ctx.wf_dict["kpoints_mesh_dos"],
             "successful": self.ctx.successful,
             "scf_performed": self.ctx.scf_needed,
@@ -597,20 +597,24 @@ class FleurDOSLocalWorkChain(WorkChain):
                 "doping_cm3": self.ctx.seebeck_params["doping_cm3"],
             })
 
-        self.out("output_dos_local_wc_para", Dict(output_dict))
+        self.out("output_dos_local_wc_para", Dict(output_dict).store())
 
         # Output DOS data
         if hasattr(self.ctx, "dos_xy"):
+            if not self.ctx.dos_xy.is_stored:
+                self.ctx.dos_xy.store()
             self.out("output_dos_xy", self.ctx.dos_xy)
 
         # Output Seebeck result
         if hasattr(self.ctx, "seebeck_result"):
-            self.out("output_seebeck", Dict(self.ctx.seebeck_result))
+            self.out("output_seebeck", Dict(self.ctx.seebeck_result).store())
 
         # Expose DOS calculation outputs
         if hasattr(self.ctx, "dos_calc") and self.ctx.dos_calc.is_finished_ok:
             self.out_many(
-                self.expose_outputs(self.ctx.dos_calc, namespace="dos_calc")
+                self.exposed_outputs(
+                    self.ctx.dos_calc, FleurBaseWorkChain, namespace="dos_calc"
+                )
             )
 
         status = "successfully" if self.ctx.successful else "with failures"
@@ -620,8 +624,8 @@ class FleurDOSLocalWorkChain(WorkChain):
 
 def read_local_file(retrieved, filename):
     """Read Local.X file and extract energy and total DOS columns"""
-    with retrieved.open(filename, "r") as f:
-        lines = f.readlines()
+    content = retrieved.get_object_content(filename)
+    lines = content.strip().split("\n")
 
     # Skip comment/header lines (usually start with '#')
     data_lines = [
@@ -656,7 +660,6 @@ def read_local_file(retrieved, filename):
     return np.array(energies), np.array(total_dos)
 
 
-@calcfunction
 def parse_local_dos(retrieved, has_local1, has_local2):
     """
     Parse DOS from FLEUR's Local.1 and Local.2 files.
@@ -697,7 +700,7 @@ def parse_local_dos(retrieved, has_local1, has_local2):
 
     elif has_local1:
         # Non-spin-polarized calculation
-        energy, total_dos = read_local_file("Local.1")
+        energy, total_dos = read_local_file(retrieved, "Local.1")
 
         return {
             "energy_ev": energy,
@@ -758,6 +761,7 @@ def calculate_seebeck(
             raise RuntimeError("Failed to converge chemical potential")
         mu_ev = sol.root
     else:
+        # Not sure if this is work's correctly
         mu_ev = fermi_energy_ev
 
     # Fermi-Dirac distribution
@@ -785,17 +789,18 @@ def calculate_seebeck(
     return {"seebeck_coefficient_uvk": alpha_uvk, "N": N_0k}
 
 
-
-
 def example_submission_scf_then_dos():
     """
     Example 1: Full workflow with SCF convergence first
     """
+    from aiida import load_profile
     from aiida.orm import Dict
+
+    load_profile()
 
     fleur_code = load_code("fleur")
     inpgen_code = load_code("inpgen")
-    structure = load_node(280548) # PbTe
+    structure = load_node(280548)  # PbTe
 
     # SCF parameters (coarse k-mesh for convergence)
     wf_para_scf = Dict(
@@ -845,32 +850,47 @@ def example_submission_scf_then_dos():
     workchain = run(FleurDOSLocalWorkChain, **inputs)
     return workchain
 
-if __name__ == "__main__":
-    example_submission_scf_then_dos()
 
-'''
-def example_submission_dos_only():
+def example_from_remote():
     """
-    Example 2: DOS calculation only using existing converged remote
+    Example 2: DOS calculation from existing remote folder
     """
-    from aiida.orm import Dict, load_node
+    from aiida import load_profile
+    from aiida.engine import run
 
-    fleur_code = load_node(FLEUR_CODE_PK)
-    remote_folder = load_node(CONVERGED_REMOTE_PK)  # from previous SCF
+    load_profile()
 
-    wf_para_dos = Dict(dict={"kpoints_mesh_dos": [48, 48, 48]})
-    seebeck_params = Dict(dict={"temperature": 300.0, "carrier_type": "hole"})
+    fleur_code = load_code("fleur")
+    remote = load_node(280879)
+
+    wf_para_dos = Dict(
+        dict={
+            "kpoints_mesh_dos": [48, 48, 48],
+            "sigma": 0.002,
+            "emin": -2.0,
+            "emax": 2.0,
+        }
+    )
+
+    # Seebeck parameters
+    seebeck_params = Dict(
+        dict={
+            "temperature": 5.0,
+            "carrier_type": "hole",
+            "doping_cm3": 5e18,  # cm^-3
+        }
+    )
 
     inputs = {
         "fleur": fleur_code,
-        "remote": remote_folder,
+        "remote": remote,
         "wf_parameters": wf_para_dos,
         "seebeck_parameters": seebeck_params,
     }
 
-    from aiida.engine import submit
-
-    workchain = submit(FleurDOSLocalWorkChain, **inputs)
-    print(f"Submitted DOS-only workflow with PK={workchain.pk}")
+    workchain = run(FleurDOSLocalWorkChain, **inputs)
     return workchain
-'''
+
+
+if __name__ == "__main__":
+    example_submission_scf_then_dos()
