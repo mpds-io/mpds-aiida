@@ -1,6 +1,7 @@
 import copy
 import re
 
+import mpmath as mp
 import numpy as np
 from aiida.common import NotExistent
 from aiida.engine import ToContext, WorkChain, if_
@@ -32,22 +33,69 @@ from scipy.special import expit
 
 AngsCubeToCmCube = 1e-24  # 1 A**3 = 1e-24 cm**3
 
+DEFAULT_SEEBECK = {
+    # just arbitrary small temperature since this code does not
+    # take into account effects of tepmerature expension properly
+    "temperature": 5.0,
+    # hole or electrons
+    "carrier_type": "hole",
+    "doping_cm3": 5e18,
+    "fermi_energy_ev": 0.0,
+    "volume": None,
+    "mu_range": (-10, 10),
+}
+
+mp.mp.dps = 100
+
+
+def calculate_optimal_kpoints_mesh(
+    structure: StructureData,
+    constant: int = 354,  # Magic number that gives appropriate k-mesh
+) -> list[int]:
+    """
+    Automatically calculate optimal k-point mesh based on lattice parameters.
+    """
+    # Get lattice parameters (lengths of lattice vectors in Angstroms)
+    cell = structure.cell
+    lattice_params = [
+        np.linalg.norm(cell[0]),  # a
+        np.linalg.norm(cell[1]),  # b
+        np.linalg.norm(cell[2]),  # c
+    ]
+
+    # Calculate k-point mesh for each direction
+    kpoints_mesh = []
+    for a_i in lattice_params:
+        # Calculate k-values using magical formula
+        k_initial = constant / a_i
+        k_rounded = int(round(k_initial))
+        # divisible by 6 both 2 and 3
+        k_adjusted = round(k_rounded / 6) * 6
+        # to avoid 0
+        k_adjusted = max(6, k_adjusted)
+
+        kpoints_mesh.append(k_adjusted)
+
+    return kpoints_mesh
+
 
 class FleurDOSLocalWorkChain(WorkChain):
     """
     WorkChain that:
     1. (Optional) Performs SCF convergence to obtain charge density
-    2. Calculates DOS with 48x48x48 k-mesh
+    2. Calculates DOS with custom k-mesh
     3. Computes Seebeck coefficient from parsed DOS
 
     Supports three input configurations:
     • scf namespace → run SCF first, then DOS
     • remote only → use existing charge density for DOS
     • remote + fleurinp → use remote's charge density, fleurinp's structure/parameters
+
+    For aiida-mpds-daemon, only FleurBaseWorkChain with DOS calculations should be set for checkups.
     """
 
     _default_wf_para = {
-        "kpoints_mesh_dos": [48, 48, 48],  # ONLY for DOS calculation
+        "kpoints_mesh_dos": None,  # [48, 48, 48] is quite fine
         "sigma": 0.002,
         "emin": -2.0,  # Hrt
         "emax": 2.0,  # Hrt
@@ -93,7 +141,8 @@ class FleurDOSLocalWorkChain(WorkChain):
         spec.input("wf_parameters", valid_type=Dict, required=False)
         spec.input("options", valid_type=Dict, required=False)
         spec.input("seebeck_parameters", valid_type=Dict, required=False)
-        spec.input("label", valid_type=Str, required=False)
+        # assumed that phase is formula/sgs string
+        spec.input("phase", valid_type=Str, required=False)
 
         # Context variables
         spec.outline(
@@ -167,6 +216,11 @@ class FleurDOSLocalWorkChain(WorkChain):
             "ERROR_SEEBECK_CALCULATION_FAILED",
             message="Seebeck coefficient calculation failed",
         )
+        spec.exit_code(
+            404,
+            "ERROR_NO_STRUCTURE_FOR_KPOINTS",
+            message="Structure required for automatic k-points calculation",
+        )
 
     def validate_inputs(self):
         """Validate input configuration and initialize context"""
@@ -178,6 +232,15 @@ class FleurDOSLocalWorkChain(WorkChain):
         except ValueError as exc:
             self.report(f"Invalid FLEUR code: {exc}")
             return self.exit_codes.ERROR_INVALID_CODE_PROVIDED
+
+        if "phase" in self.inputs:
+            self.ctx.phase = self.inputs.phase.value
+        else:
+            self.report("WARNING: No phase label in inputs")
+            self.ctx.phase = "UNKOWN PHASE"
+
+        self.ctx.label = f"{self.ctx.phase} : Seebeck coefficient calculation from DOS (Fleur)"
+        self.node.label = self.ctx.label
 
         # Determine workflow mode
         has_scf = "scf" in self.inputs
@@ -208,12 +271,31 @@ class FleurDOSLocalWorkChain(WorkChain):
                 self.report(
                     f"WARNING: wf_parameters contains extra keys: {extra_keys}"
                 )
+            # Merge defaults with user input
+            for key, val in wf_default.items():
+                wf_dict.setdefault(key, val)
         else:
             wf_dict = wf_default
 
-        # Merge defaults with user input
-        for key, val in wf_default.items():
-            wf_dict.setdefault(key, val)
+        if wf_dict.get("kpoints_mesh_dos") is None:
+            self.report(
+                "kpoints_mesh_dos not provided, calculating automatically..."
+            )
+            structure = self._get_structure()
+            if structure is None:
+                self.report(
+                    "ERROR: Cannot calculate k-points without structure"
+                )
+                return self.exit_codes.ERROR_NO_STRUCTURE_FOR_KPOINTS
+
+            kpoints_mesh = calculate_optimal_kpoints_mesh(structure)
+            wf_dict["kpoints_mesh_dos"] = kpoints_mesh
+            self.report(f"Auto-calculated k-points mesh: {kpoints_mesh}")
+        else:
+            self.report(
+                f"Using provided k-points mesh: {wf_dict['kpoints_mesh_dos']}"
+            )
+
         self.ctx.wf_dict = wf_dict
 
         # Initialize options
@@ -227,27 +309,43 @@ class FleurDOSLocalWorkChain(WorkChain):
         self.ctx.options = opt_dict
 
         # Initialize Seebeck parameters
-        default_seebeck = {
-            "temperature": 5.0,
-            "carrier_type": "hole",
-            "doping_cm3": 5e18,
-            "fermi_energy_ev": 0.0,
-        }
+        default_seebeck = DEFAULT_SEEBECK.copy()
         if "seebeck_parameters" in self.inputs:
             user_params = self.inputs.seebeck_parameters.get_dict()
             default_seebeck.update(user_params)
         self.ctx.seebeck_params = default_seebeck
-
-        if "label" in self.inputs:
-            self.ctx.label = self.inputs.label.value
-        else:
-            self.ctx.label = "Fleur"
 
         self.report(
             f'Workflow mode: {"SCF + DOS" if self.ctx.scf_needed else "DOS only"}'
         )
         self.report(f'DOS k-mesh: {wf_dict["kpoints_mesh_dos"]}')
         return
+
+    def _get_structure(self):
+        """
+        Get structure data for k-points calculation.
+        inputs.structure > inputs.scf.structure > fleurinp from SCF/remote
+        """
+        # Try direct structure input
+        if "structure" in self.inputs:
+            return self.inputs.structure
+
+        # Try SCF namespace structure
+        if self.ctx.scf_needed and "scf" in self.inputs:
+            if "structure" in self.inputs.scf:
+                return self.inputs.scf.structure
+
+        # Try to get from fleurinp if available
+        if (
+            hasattr(self.ctx, "fleurinp_base")
+            and self.ctx.fleurinp_base is not None
+        ):
+            try:
+                return self.ctx.fleurinp_base.get_structuredata_ncf()
+            except Exception:
+                pass
+
+        return None
 
     def scf_needed(self) -> bool:
         """Condition for outline: whether SCF convergence is required"""
@@ -257,8 +355,8 @@ class FleurDOSLocalWorkChain(WorkChain):
         """Submit SCF workchain to converge charge density"""
         self.report("Launching SCF workchain to converge charge density...")
 
-        # Get SCF inputs from exposed namespace
-        scf_inputs = self.inputs.scf
+        # Get SCF inputs from exposed namespace and convert to dict
+        scf_inputs = dict(self.inputs.scf)
 
         # Ensure structure or fleurinp is provided in SCF namespace
         if "structure" not in scf_inputs and "fleurinp" not in scf_inputs:
@@ -266,6 +364,10 @@ class FleurDOSLocalWorkChain(WorkChain):
                 'ERROR: SCF namespace must contain "structure" or "fleurinp"'
             )
             return self.exit_codes.ERROR_INVALID_INPUT_CONFIG
+
+        # Set label for SCF workchain
+        label = f"{self.ctx.label} - SCF"
+        scf_inputs["metadata"] = {"label": label}
 
         # Submit SCF workchain
         future = self.submit(FleurScfWorkChain, **scf_inputs)
@@ -365,7 +467,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             "numberPoints": self.ctx.wf_dict["numberPoints"],
         })
 
-        # XXX https://aiida-fleur.readthedocs.io/en/latest/module_guide/code.html#aiida_fleur.data.fleurinpmodifier.FleurinpModifier.set_kpointmesh
+        # NB: https://aiida-fleur.readthedocs.io/en/latest/module_guide/code.html#aiida_fleur.data.fleurinpmodifier.FleurinpModifier.set_kpointmesh
         fleurmode.set_kpointmesh(
             mesh=self.ctx.wf_dict["kpoints_mesh_dos"], switch=True
         )
@@ -383,7 +485,7 @@ class FleurDOSLocalWorkChain(WorkChain):
         fleurinp_dos = fleurmode.freeze()
 
         # Prepare inputs for FleurBaseWorkChain
-        label = f"{self.ctx.label} - DOS calculation"
+        label = f"{self.ctx.label} - DOS"
 
         # Prevent copying mixing history (clean DOS calculation)
         settings = {"remove_from_remotecopy_list": ["mixing_history*"]}
@@ -393,11 +495,12 @@ class FleurDOSLocalWorkChain(WorkChain):
             remote=self.ctx.remote_for_dos,
             fleurinp=fleurinp_dos,
             options=self.ctx.options,
-            # XXX Should label be in metadata?
-            label=label,
             settings=settings,
             add_comp_para=self.ctx.wf_dict["add_comp_para"],
+            label=label,
         )
+
+        # inputs_builder["metadata"] = {"label": label}
 
         future = self.submit(FleurBaseWorkChain, **inputs_builder)
         self.report(f"Submitted DOS calculation: PK={future.pk}")
@@ -437,7 +540,6 @@ class FleurDOSLocalWorkChain(WorkChain):
             )
 
             # Store as XyData for provenance
-            # TODO: replace with array data
             dos_xy = XyData()
             dos_xy.set_x(dos_data["energy_ev"], "energy", "eV")
 
@@ -456,7 +558,7 @@ class FleurDOSLocalWorkChain(WorkChain):
 
             dos_xy.set_y(y_arrays, y_names, y_units)
             dos_xy.label = "dos_from_local_files"
-            dos_xy.description = f'{self.ctx.label} DOS from Local files with {self.ctx.wf_dict["kpoints_mesh_dos"]} k-mesh'
+            dos_xy.description = f'{self.ctx.phase} DOS from Local files with {self.ctx.wf_dict["kpoints_mesh_dos"]} k-mesh'
             self.ctx.dos_xy = dos_xy
 
             self.report(
@@ -479,14 +581,13 @@ class FleurDOSLocalWorkChain(WorkChain):
             )
             return
 
-        # TODO check if works correctly
         try:
             # Get unit cell volume if structure provided
             volume_cm3 = None
             if "structure" in self.inputs:
                 structure = self.inputs.structure
                 volume_ang3 = structure.get_cell_volume()
-                volume_cm3 = volume_ang3 * AngsCubeToCmCube  # angs**3 → cm**3
+                volume_cm3 = volume_ang3 * AngsCubeToCmCube
             elif hasattr(self.ctx, "fleurinp_base"):
                 # Try to get structure from fleurinp
                 try:
@@ -494,54 +595,24 @@ class FleurDOSLocalWorkChain(WorkChain):
                         self.ctx.fleurinp_base.get_structuredata_ncf()
                     )  # should return StructureData
                     volume_ang3 = structure.get_cell_volume()
-                    volume_cm3 = (
-                        volume_ang3 * AngsCubeToCmCube
-                    )  # angs**3 → cm**3
+                    volume_cm3 = volume_ang3 * AngsCubeToCmCube
                 except Exception:
                     volume_cm3 = None
 
             # Prepare parameters
             params = self.ctx.seebeck_params
-            if self.ctx.dos_spin_polarized:
-                result1 = calculate_seebeck(
-                    energy_ev=self.ctx.dos_energy_ev,
-                    dos=self.ctx.dos_total,
-                    T=params["temperature"],
-                    doping_cm3=params["doping_cm3"],
-                    fermi_energy_ev=params["fermi_energy_ev"],
-                    volume_cm3=volume_cm3,
-                    carrier_type=params["carrier_type"],
-                )
-
-                result2 = calculate_seebeck(
-                    energy_ev=self.ctx.dos_energy_ev,
-                    dos=self.ctx.dos_total,
-                    T=params["temperature"],
-                    doping_cm3=params["doping_cm3"],
-                    fermi_energy_ev=params["fermi_energy_ev"],
-                    volume_cm3=volume_cm3,
-                    carrier_type=params["carrier_type"],
-                )
-
-                # TODO DOUBLE CHECK THIS. tests shows it gives reasonable results
-                seebeck = (
-                    result1["N"] * result1["seebeck_coefficient_uvk"]
-                    + result2["N"] * result2["seebeck_coefficient_uvk"]
-                ) / (result1["N"] + result2["N"])
-                result = {
-                    "seebeck_coefficient_uvk": seebeck,
-                    "N": result1["N"] + result2["N"],
-                }
-            else:
-                result = calculate_seebeck(
-                    energy_ev=self.ctx.dos_energy_ev,
-                    dos=self.ctx.dos_total,
-                    T=params["temperature"],
-                    doping_cm3=params["doping_cm3"],
-                    fermi_energy_ev=params["fermi_energy_ev"],
-                    volume_cm3=volume_cm3,
-                    carrier_type=params["carrier_type"],
-                )
+            # even if system is spin-polarized we calculate Seebeck from total DOS
+            # This follows from the definition of Seebeck coefficient
+            # scince chemical potential is single, no mater if we have time-reversal symmetry or not
+            result = calculate_seebeck(
+                energy_ev=self.ctx.dos_energy_ev,
+                dos=self.ctx.dos_total,
+                T=params["temperature"],
+                doping_cm3=params["doping_cm3"],
+                fermi_energy_ev=params["fermi_energy_ev"],
+                volume_cm3=volume_cm3,
+                carrier_type=params["carrier_type"],
+            )
 
             self.ctx.seebeck_result = result
             self.report(
@@ -715,16 +786,33 @@ def parse_local_dos(retrieved, has_local1, has_local2):
 def calculate_seebeck(
     energy_ev,
     dos,
-    T=5,
-    doping_cm3=5e18,
-    fermi_energy_ev=0.0,
-    volume_cm3=1e-24,
-    carrier_type="hole",
+    T=None,
+    doping_cm3=None,
+    fermi_energy_ev=None,
+    volume_cm3=None,
+    carrier_type=None,
+    mu_range=None,
 ):
     """
     Calculate Seebeck coefficient based on https://arxiv.org/pdf/1708.01591 thermodynamic approach.
     """
     kb = const.Boltzmann / const.electron_volt
+
+    if T is None:
+        T = DEFAULT_SEEBECK["temperature"]
+    if doping_cm3 is None:
+        doping_cm3 = DEFAULT_SEEBECK["doping_cm3"]
+    if fermi_energy_ev is None:
+        fermi_energy_ev = DEFAULT_SEEBECK["fermi_energy_ev"]
+    if volume_cm3 is None:
+        volume_cm3 = DEFAULT_SEEBECK["volume"]
+    if carrier_type is None:
+        carrier_type = DEFAULT_SEEBECK["carrier_type"]
+    if mu_range is None:
+        mu_range = DEFAULT_SEEBECK["mu_range"]
+
+    mask_0k = energy_ev <= 0.0
+    N_0k = simpson(dos[mask_0k], energy_ev[mask_0k])
 
     # Determine chemical potential mu
     if doping_cm3 is not None:
@@ -736,33 +824,30 @@ def calculate_seebeck(
         carriers_per_unit_cell = doping_cm3 * volume_cm3
         is_p_type = carrier_type == "hole"
 
-        mask_0k = energy_ev <= 0.0
-        N_0k = simpson(dos[mask_0k], energy_ev[mask_0k])
-
         if is_p_type:
             N_target = N_0k - carriers_per_unit_cell
         else:
             N_target = N_0k + carriers_per_unit_cell
 
-        # define them here since it's much easier to pass it to root_scalar
-        def fermi_dirac_safe(energy_ev, mu_ev, temperature_k):
-            x = -(energy_ev - mu_ev) / (kb * temperature_k)
-            return expit(x)
-
-        def charge_neutrality(mu):
-            f = fermi_dirac_safe(energy_ev, mu, T)
-            N_T = simpson(dos * f, energy_ev)
-            return N_T - N_target
-
-        sol = root_scalar(
-            charge_neutrality, bracket=[-0.5, 0.5], method="bisect", xtol=1e-8
-        )
-        if not sol.converged:
-            raise RuntimeError("Failed to converge chemical potential")
-        mu_ev = sol.root
     else:
-        # Not sure if this is work's correctly
-        mu_ev = fermi_energy_ev
+        N_target = N_0k
+
+    # define them here since it's much easier to pass it to root_scalar
+    def fermi_dirac_safe(energy_ev, mu_ev, temperature_k):
+        x = -(energy_ev - mu_ev) / (kb * temperature_k)
+        return expit(x)
+
+    def charge_neutrality(mu):
+        f = fermi_dirac_safe(energy_ev, mu, T)
+        N_T = simpson(dos * f, energy_ev)
+        return N_T - N_target
+
+    sol = root_scalar(
+        charge_neutrality, bracket=mu_range, method="bisect", xtol=1e-8
+    )
+    if not sol.converged:
+        raise RuntimeError("Failed to converge chemical potential")
+    mu_ev = sol.root
 
     # Fermi-Dirac distribution
     x = (energy_ev - mu_ev) / (kb * T)
@@ -812,10 +897,10 @@ def example_submission_scf_then_dos():
         }
     )
 
-    # DOS parameters (fine 48x48x48 mesh)
+    # DOS parameters (for fine quality use 48x48x48 mesh or let workflow define it)
     wf_para_dos = Dict(
         dict={
-            "kpoints_mesh_dos": [48, 48, 48],
+            "kpoints_mesh_dos": [6, 6, 6],  # for fast test only
             "sigma": 0.002,
             "emin": -2.0,
             "emax": 2.0,
@@ -823,13 +908,7 @@ def example_submission_scf_then_dos():
     )
 
     # Seebeck parameters
-    seebeck_params = Dict(
-        dict={
-            "temperature": 5.0,
-            "carrier_type": "hole",
-            "doping_cm3": 5e18,  # cm^-3
-        }
-    )
+    seebeck_params = Dict(DEFAULT_SEEBECK)
 
     # Submit workflow with SCF namespace
     inputs = {
@@ -842,7 +921,8 @@ def example_submission_scf_then_dos():
         "fleur": fleur_code,
         "wf_parameters": wf_para_dos,
         "seebeck_parameters": seebeck_params,
-        "structure": structure,  # for volume calculation in Seebeck
+        "structure": structure,
+        "phase": Str("PbTe/225"),
     }
 
     from aiida.engine import run
@@ -865,7 +945,7 @@ def example_from_remote():
 
     wf_para_dos = Dict(
         dict={
-            "kpoints_mesh_dos": [48, 48, 48],
+            "kpoints_mesh_dos": [6, 6, 6],  # for fast test only
             "sigma": 0.002,
             "emin": -2.0,
             "emax": 2.0,
@@ -873,19 +953,14 @@ def example_from_remote():
     )
 
     # Seebeck parameters
-    seebeck_params = Dict(
-        dict={
-            "temperature": 5.0,
-            "carrier_type": "hole",
-            "doping_cm3": 5e18,  # cm^-3
-        }
-    )
+    seebeck_params = Dict(DEFAULT_SEEBECK)
 
     inputs = {
         "fleur": fleur_code,
         "remote": remote,
         "wf_parameters": wf_para_dos,
         "seebeck_parameters": seebeck_params,
+        "phase": Str("PbTe/225"),
     }
 
     workchain = run(FleurDOSLocalWorkChain, **inputs)
