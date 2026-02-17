@@ -500,7 +500,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             label=label,
         )
 
-        # inputs_builder["metadata"] = {"label": label}
+        inputs_builder["metadata"] = {"label": label}
 
         future = self.submit(FleurBaseWorkChain, **inputs_builder)
         self.report(f"Submitted DOS calculation: PK={future.pk}")
