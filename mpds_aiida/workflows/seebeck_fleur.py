@@ -32,6 +32,8 @@ from scipy.optimize import root_scalar
 from scipy.special import expit
 
 AngsCubeToCmCube = 1e-24  # 1 A**3 = 1e-24 cm**3
+MIN_MESH = 6
+MAX_MESH = 84
 
 DEFAULT_SEEBECK = {
     # just arbitrary small temperature since this code does not
@@ -51,6 +53,8 @@ mp.mp.dps = 100
 def calculate_optimal_kpoints_mesh(
     structure: StructureData,
     constant: int = 354,  # Magic number that gives appropriate k-mesh
+    min_val:int = MIN_MESH,
+    max_val: int = MAX_MESH
 ) -> list[int]:
     """
     Automatically calculate optimal k-point mesh based on lattice parameters.
@@ -72,7 +76,8 @@ def calculate_optimal_kpoints_mesh(
         # divisible by 6 both 2 and 3
         k_adjusted = round(k_rounded / 6) * 6
         # to avoid 0
-        k_adjusted = max(6, k_adjusted)
+        k_adjusted = max(min_val, k_adjusted)
+        k_adjusted = min(max_val, k_adjusted)
 
         kpoints_mesh.append(k_adjusted)
 
@@ -786,30 +791,17 @@ def parse_local_dos(retrieved, has_local1, has_local2):
 def calculate_seebeck(
     energy_ev,
     dos,
-    T=None,
-    doping_cm3=None,
-    fermi_energy_ev=None,
-    volume_cm3=None,
-    carrier_type=None,
-    mu_range=None,
+    T=DEFAULT_SEEBECK["temperature"],
+    doping_cm3=DEFAULT_SEEBECK["doping_cm3"],
+    fermi_energy_ev=DEFAULT_SEEBECK["fermi_energy_ev"],
+    volume_cm3=DEFAULT_SEEBECK["volume"],
+    carrier_type=DEFAULT_SEEBECK["carrier_type"],
+    mu_range=DEFAULT_SEEBECK["mu_range"],
 ):
     """
     Calculate Seebeck coefficient based on https://arxiv.org/pdf/1708.01591 thermodynamic approach.
     """
     kb = const.Boltzmann / const.electron_volt
-
-    if T is None:
-        T = DEFAULT_SEEBECK["temperature"]
-    if doping_cm3 is None:
-        doping_cm3 = DEFAULT_SEEBECK["doping_cm3"]
-    if fermi_energy_ev is None:
-        fermi_energy_ev = DEFAULT_SEEBECK["fermi_energy_ev"]
-    if volume_cm3 is None:
-        volume_cm3 = DEFAULT_SEEBECK["volume"]
-    if carrier_type is None:
-        carrier_type = DEFAULT_SEEBECK["carrier_type"]
-    if mu_range is None:
-        mu_range = DEFAULT_SEEBECK["mu_range"]
 
     mask_0k = energy_ev <= 0.0
     N_0k = simpson(dos[mask_0k], energy_ev[mask_0k])
