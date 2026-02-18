@@ -28,8 +28,6 @@ from aiida_fleur.workflows.base_fleur import FleurBaseWorkChain
 from aiida_fleur.workflows.scf import FleurScfWorkChain
 from scipy import constants as const
 from scipy.integrate import simpson
-from scipy.optimize import root_scalar
-from scipy.special import expit
 
 AngsCubeToCmCube = 1e-24  # 1 A**3 = 1e-24 cm**3
 MIN_MESH = 6
@@ -665,8 +663,18 @@ class FleurDOSLocalWorkChain(WorkChain):
         # Add Seebeck results if available
         if hasattr(self.ctx, "seebeck_result"):
             output_dict.update({
+                # Seebeck
                 "seebeck_coefficient_uvk": self.ctx.seebeck_result[
                     "seebeck_coefficient_uvk"
+                ],
+                # N electrons
+                # If DFT calculation are correct must be very close to N valent electrons
+                "N_0K": self.ctx.seebeck_result[
+                    "N"
+                ],
+                # Chemical potential
+                "mu_ev": self.ctx.seebeck_result[
+                    "mu_ev"
                 ],
                 "temperature_k": self.ctx.seebeck_params["temperature"],
                 "carrier_type": self.ctx.seebeck_params["carrier_type"],
@@ -791,20 +799,27 @@ def parse_local_dos(retrieved, has_local1, has_local2):
 def calculate_seebeck(
     energy_ev,
     dos,
-    T=DEFAULT_SEEBECK["temperature"],
-    doping_cm3=DEFAULT_SEEBECK["doping_cm3"],
-    fermi_energy_ev=DEFAULT_SEEBECK["fermi_energy_ev"],
-    volume_cm3=DEFAULT_SEEBECK["volume"],
-    carrier_type=DEFAULT_SEEBECK["carrier_type"],
-    mu_range=DEFAULT_SEEBECK["mu_range"],
+    T=DEFAULT_SEEBECK.get("temperature", 5),
+    doping_cm3=DEFAULT_SEEBECK.get("doping_cm3", 5e18),
+    fermi_energy_ev=DEFAULT_SEEBECK.get("fermi_energy_ev", 0),
+    volume_cm3=DEFAULT_SEEBECK.get("volume"),
+    carrier_type=DEFAULT_SEEBECK.get("carrier_type", "hole"),
+    mu_range = DEFAULT_SEEBECK.get("mu_range", (-10, 10))
 ):
     """
     Calculate Seebeck coefficient based on https://arxiv.org/pdf/1708.01591 thermodynamic approach.
     """
-    kb = const.Boltzmann / const.electron_volt
+    KB_MPF = mp.mpf(const.Boltzmann / const.electron_volt)
 
-    mask_0k = energy_ev <= 0.0
-    N_0k = simpson(dos[mask_0k], energy_ev[mask_0k])
+    energy_mp = [mp.mpf(e) for e in energy_ev]
+    dos_mp = [mp.mpf(d) for d in dos]
+    T_mp = mp.mpf(T)
+
+    mask_0k = [e <= mp.mpf('0') for e in energy_mp]
+    energy_0k = [e for e, m in zip(energy_mp, mask_0k) if m]
+    dos_0k = [d for d, m in zip(dos_mp, mask_0k) if m]
+
+    N_0k = simpson(dos_0k, x=energy_0k)
 
     # Determine chemical potential mu
     if doping_cm3 is not None:
@@ -813,7 +828,7 @@ def calculate_seebeck(
                 "Volume (cm^3) required when specifying doping concentration"
             )
 
-        carriers_per_unit_cell = doping_cm3 * volume_cm3
+        carriers_per_unit_cell = mp.mpf(doping_cm3) * mp.mpf(volume_cm3)
         is_p_type = carrier_type == "hole"
 
         if is_p_type:
@@ -824,46 +839,66 @@ def calculate_seebeck(
     else:
         N_target = N_0k
 
-    # define them here since it's much easier to pass it to root_scalar
+
     def fermi_dirac_safe(energy_ev, mu_ev, temperature_k):
-        x = -(energy_ev - mu_ev) / (kb * temperature_k)
-        return expit(x)
+        x = -((energy_ev - mu_ev)/(KB_MPF * temperature_k))
+        return mp.sigmoid(x, 1)
 
     def charge_neutrality(mu):
-        f = fermi_dirac_safe(energy_ev, mu, T)
-        N_T = simpson(dos * f, energy_ev)
+        f_vals = [fermi_dirac_safe(e, mu, T_mp) for e in energy_mp]
+        integrand = [d * f for d, f in zip(dos_mp, f_vals)]
+        N_T = simpson(integrand, x=energy_mp)
         return N_T - N_target
 
-    sol = root_scalar(
-        charge_neutrality, bracket=mu_range, method="bisect", xtol=1e-8
-    )
-    if not sol.converged:
-        raise RuntimeError("Failed to converge chemical potential")
-    mu_ev = sol.root
+    mu_guess = (mp.mpf(fermi_energy_ev) - 0.25, mp.mpf(fermi_energy_ev) + 0.25) if fermi_energy_ev else (mp.mpf('-.25'), mp.mpf('.25'))
+    try:
+        mu_ev = mp.findroot(charge_neutrality, mu_guess, tol=mp.mpf('1e-8'), solver='ridder')
+    except Exception:
+        # If mu_ev shifts too much
+        # GIGA IMPORTANT
+        # TODO: add this range into function and WorkChain
+        # TODO: ADD this interval into workchain input
+        mu_scan = [mp.mpf(x) for x in range(mu_range[0], mu_range[1] + 1)] # it is gigantic interval. If it is fails it means something goes wrong
+        vals = [charge_neutrality(mu) for mu in mu_scan]
+        bracket = None
+        for i in range(len(vals) - 1):
+            if vals[i] * vals[i + 1] < 0: # quite a trick to find where it change its value
+                bracket = (mu_scan[i], mu_scan[i + 1])
+                break
+        if bracket is None:
+            raise RuntimeError("Failed to find sign change for chemical potential")
+        mu_ev = mp.findroot(charge_neutrality, bracket, tol=mp.mpf('1e-8'), solver='ridder')
 
     # Fermi-Dirac distribution
-    x = (energy_ev - mu_ev) / (kb * T)
-    f = expit(x)
+    f_vals = [fermi_dirac_safe(e, mu_ev, T_mp) for e in energy_mp]
+    f1f_vals = [f * (1 - f) for f in f_vals]
 
-    # Compute integrals
-    f1f = f * (1 - f)
-    numerator = simpson(dos * f1f * (energy_ev - mu_ev), energy_ev)
-    denominator = simpson(dos * f1f, energy_ev)
+    # Seebeck
+    numerator_integrand = [d * f1f * (e - mu_ev) for d, f1f, e in zip(dos_mp, f1f_vals, energy_mp)]
+    denominator_integrand = [d * f1f for d, f1f in zip(dos_mp, f1f_vals)]
 
-    if abs(denominator) < 1e-20:
+    numerator = simpson(numerator_integrand, x=energy_mp)
+    denominator = simpson(denominator_integrand, x=energy_mp)
+
+
+    if mp.almosteq(denominator, mp.mpf('0'), abs_eps=mp.mpf('1e-35')):
         raise ValueError(
-            "Denominator integral too small - check DOS and temperature"
-        )
+            f"Denominator unphysically small ({mp.nstr(denominator, mp.mp.dps)}).")
 
-    alpha_vk = -numerator / (denominator * T)
-    alpha_uvk = alpha_vk * 1e6  # V/K to uV/K
+
+    alpha_vk = -numerator / (denominator * T_mp)
+    alpha_uvk = alpha_vk * mp.mpf('1e6')  # V/K to uV/K
 
     if carrier_type == "hole":
-        alpha_uvk = abs(alpha_uvk)
+        alpha_uvk = mp.fabs(alpha_uvk)
     else:
-        alpha_uvk = -abs(alpha_uvk)
+        alpha_uvk = -mp.fabs(alpha_uvk)
 
-    return {"seebeck_coefficient_uvk": alpha_uvk, "N": N_0k}
+    return {
+        "seebeck_coefficient_uvk": float(alpha_uvk),
+        "N": float(N_0k),
+        "mu_ev": float(mu_ev),
+    }
 
 
 def example_submission_scf_then_dos():
@@ -933,7 +968,7 @@ def example_from_remote():
     load_profile()
 
     fleur_code = load_code("fleur")
-    remote = load_node(280879)
+    remote = load_node(280879) # Remote folder from previous calculations (SCF results)
 
     wf_para_dos = Dict(
         dict={
