@@ -1,0 +1,146 @@
+codes:
+  crystal:
+    Pcrystal@yascheduler
+
+options:
+  need_phonons: true
+  need_elastic_constants: true
+  need_properties: false
+  recursive_update: true
+  try_oxi_if_fails: true
+  is_magnetic: true
+  optimize_structure: optimise
+
+basis_family: MPDSBSL_NEUTRAL_24
+
+default:
+  crystal:
+    scf:
+      k_points: [18, 54]
+      dft:
+        SPIN: True
+        xc: PBE0
+        grid: XLGRID
+        numerical:
+          TOLLDENS: 8
+          TOLLGRID: 16
+      numerical:
+        TOLDEE: 9
+        BIPOSIZE: 256000000
+        EXCHSIZE: 256000000 
+        TOLINTEG: [20, 20, 20, 20, 40]
+        FMIXING: 80
+        SMEAR: 0.001
+        MAXCYCLE: 500
+      fock_mixing: ANDERSON
+      post_scf: ['PPAN']
+
+calculations:
+  optimise:
+    metadata:
+      label: 'Geometry optimization'
+    parameters:
+      crystal:
+        geometry:
+          optimise:
+            hessian: HESSIDEN
+            convergence:
+              TOLDEE: 9
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              MAXCYCLE: 1000
+      301:
+        crystal:
+          scf:
+            k_points: [36, 72]
+            numerical:
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
+      303:
+        crystal:
+          scf:
+            k_points: [36, 72]
+            numerical:
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
+      304:
+        crystal:
+          scf:
+            k_points: [36, 72]
+            numerical:
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
+      305:
+        crystal:
+          scf:
+            k_points: [36, 72]
+            numerical:
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
+      306:
+        crystal:
+          scf:
+            k_points: [36, 72]
+            numerical:
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
+  phonons:
+    metadata:
+      label: 'Phonon frequencies'
+    parameters:
+      crystal:
+        geometry:
+          phonons:
+            TEMPERAT: [35, 5.7125, 1000]
+            SCELPHONO: [[1, 1, 0], [-1, 1, 0], [0, 0, 2]]
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              MAXCYCLE: 1000
+      303:
+        crystal:
+          scf:
+            k_points: [36, 72]
+            numerical:
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
+  elastic_constants:
+    metadata:
+      label: 'Elastic constants'
+    parameters:
+      crystal:
+        geometry:
+          elastic_constants:
+            type: ELASTCON
+    on_error:
+      300:
+        crystal:
+          scf:
+            numerical:
+              MAXCYCLE: 1000
+      303:
+        crystal:
+          scf:
+            k_points: [36, 72]
+            numerical:
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
