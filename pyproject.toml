@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpds-aiida"
-version = "0.2.0"
+version = "0.2.1"
 description = "Aiida workflows for MPDS based on CRYSTAL"
 authors = [
     { name = "Andrey Sobolev", email = "as@tilde.pro" },
@@ -61,7 +61,7 @@ include = ["mpds_aiida*"]
 "crystal.mpds" = "mpds_aiida.workflows.mpds:MPDSStructureWorkchain"
 "crystal.cif" = "mpds_aiida.workflows.cif:CIFStructureWorkchain"
 "crystal.aiida" = "mpds_aiida.workflows.aiida:AiidaStructureWorkchain"
-"phonopy.fleur" = "mpds_aiida.workflows.phonopy_fleur:PhonopyFleurWorkChain"
-"fleur.forces" = "mpds_aiida.workflows.phonopy_fleur:FleurForcesWorkChain"
+"phonopy.fleur" = "mpds_aiida.workflows.fleur_phonopy:PhonopyFleurWorkChain"
+"fleur.forces" = "mpds_aiida.workflows.fleur_phonopy:FleurForcesWorkChain"
 "fleur.mpds" = "mpds_aiida.workflows.fleur_mpds:MPDSFleurStructureWorkChain"
-"fleur.dos_seebeck" = "mpds_aiida.workflows.seebeck_fleur.FleurDOSLocalWorkChain"
+"fleur.dos_seebeck" = "mpds_aiida.workflows.fleur_seebeck.FleurDOSLocalWorkChain"
