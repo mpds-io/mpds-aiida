@@ -11,7 +11,7 @@ from aiida_reoptimize.structure.magmoms_utils import (
 )
 from ase.build import bulk
 
-from mpds_aiida.workflows.phonopy_fleur import (
+from mpds_aiida.workflows.fleur_phonopy import (
     FleurForcesWorkChain,
     PhonopyFleurWorkChain,
 )

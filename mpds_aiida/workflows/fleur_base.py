@@ -6,7 +6,7 @@ from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
 
 from ..common import get_initial_parameters_from_structure, get_template
-from .phonopy_fleur import PhonopyFleurWorkChain
+from .fleur_phonopy import PhonopyFleurWorkChain
 
 OPTIMIZERS = {
     "scf": {
