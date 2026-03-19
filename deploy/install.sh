@@ -3,12 +3,13 @@ set -euo pipefail
 
 #================== GENERAL ==================
 
-PG_VERSION="14.6" # NB subject to update
+PG_VERSION="17.9" # NB subject to update
 PG_SOURCE_ADDR=https://ftp.postgresql.org/pub/source/v$PG_VERSION/postgresql-$PG_VERSION.tar.gz
 
 SETTINGS=(
 postgresql.conf
 supervisord.conf
+yascheduler.conf
 sysctl.conf
 aiida_setup.sh
 )
@@ -21,7 +22,28 @@ done
 
 apt-get -y update && apt-get -y upgrade
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-apt-get -y install build-essential libatlas-base-dev libopenblas-dev libblas-dev libffi-dev libreadline6-dev zlib1g-dev liblapack-dev supervisor python3-dev python3-pip python3-numpy python3-scipy python3-matplotlib p7zip-full git swig python3-setuptools rabbitmq-server pkg-config
+
+apt-get install -y \
+    build-essential \
+    rabbitmq-server \
+    p7zip-full \
+    git \
+    swig \
+    libicu-dev \
+    flex \
+    bison \
+    pkg-config \
+    zlib1g-dev \
+    libreadline6-dev \
+    libboost-all-dev \
+    libopenblas-dev \
+    libblas-dev \
+    libffi-dev \
+    liblapack-dev \
+    supervisor \
+    python3-dev \
+    python3-pip \
+;
 
 update-rc.d supervisor defaults
 update-rc.d supervisor enable
@@ -57,27 +79,21 @@ chown -R postgres:postgres /data/pg
 cd ..
 cp $(dirname $0)/postgresql.conf /data/pg/db/
 
-#================== GENERAL#2 ==================
+#================== AiiDA ==================
 
+mkdir /etc/yascheduler/
+cp $(dirname $0)/yascheduler.conf /etc/yascheduler/
 cp $(dirname $0)/supervisord.conf /etc/supervisor/
 cat $(dirname $0)/sysctl.conf >> /etc/sysctl.conf
 
-#================== AiiDA ==================
+pip install --break-system-packages git+https://github.com/tilde-lab/aiida-crystal-dft
+pip install --break-system-packages git+https://github.com/tilde-lab/yascheduler
+pip install --break-system-packages git+https://github.com/mpds-io/dft_organizer
 
-pip install git+https://github.com/tilde-lab/aiida-crystal-dft
-pip install git+https://github.com/tilde-lab/yascheduler
-pip install git+https://github.com/mpds-io/mpds-ml-labs
-mkdir /data/mpds-aiida
 git clone https://github.com/mpds-io/mpds-aiida /data/mpds-aiida
-pip install /data/mpds-aiida/
+pip install --break-system-packages /data/mpds-aiida/
 reentry scan
 cd /data/mpds-aiida/
-python scripts/bs_unito_download.py
-cd MPDSBSL_NEUTRAL_6TH
-verdi data crystal_dft uploadfamily --name=MPDSBSL_NEUTRAL_6TH # TODO check if nothing has changed
 
 cat /dev/zero | ssh-keygen -q -N ""
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-
-shutdown -r now
-systemctl reboot # if previous fails

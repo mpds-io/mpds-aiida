@@ -11,7 +11,7 @@ options:
   is_magnetic: true
   optimize_structure: optimise
 
-basis_family: MPDSBSL_NEUTRAL_24
+basis_family: MPDSBSL_NEUTRAL_6TH
 
 default:
   crystal:
@@ -30,8 +30,8 @@ default:
         EXCHSIZE: 256000000
         TOLINTEG: [8, 8, 8, 8, 30]
         FMIXING: 90
-        SMEAR: 0.2
-        MAXCYCLE: 150
+        SMEAR: 0.1
+        MAXCYCLE: 200
       fock_mixing: DIISALLK
       post_scf: ['PPAN']
 
@@ -51,32 +51,43 @@ calculations:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
+              MAXCYCLE: 300
       301:
         crystal:
           scf:
+            k_points: [20, 64]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
       303:
         crystal:
           scf:
+            k_points: [20, 64]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
       304:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
       305:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
       306:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
   phonons:
     metadata:
       label: 'Phonon frequencies'
@@ -91,12 +102,18 @@ calculations:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
+              MAXCYCLE: 400
       303:
         crystal:
           scf:
+            k_points: [20, 64]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
   elastic_constants:
     metadata:
       label: 'Elastic constants'
@@ -110,9 +127,15 @@ calculations:
         crystal:
           scf:
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
+              MAXCYCLE: 400
       303:
         crystal:
           scf:
+            k_points: [20, 64]
             numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
+              TOLINTEG: [12, 12, 12, 12, 40]
+              TOLLDENS: 10
+              TOLLGRID: 18
+          numerical:
+            TOLPSEUD: 10
