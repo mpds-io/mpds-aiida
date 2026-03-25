@@ -49,6 +49,7 @@ def get_initial_parameters_from_structure(ase_struct):
 
     return cell, system
 
+
 def guess_metal(ase_obj):
     """
     Make an educated guess of the metallic compound character,

@@ -1,14 +1,19 @@
-# Copyright (c) Andrey Sobolev and Evgeny Blokhin, 2016-2019
+# Copyright (c) Andrey Sobolev and Evgeny Blokhin, 2020-2026
 # Distributed under MIT license, see LICENSE file.
+# TODO fully support standard MPDS archives
 
 import os
 import sys
 import shutil
 from distutils import spawn
 import subprocess
+
+import numpy as np
+
 from aiida.orm import load_node
 from aiida.orm import QueryBuilder, WorkChainNode, CalcJobNode
 from aiida_crystal_dft.io.d12_write import write_input
+
 from mpds_aiida.workflows import GEOMETRY_LABEL, PROPERTIES_LABEL
 from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
 
@@ -76,10 +81,28 @@ def archive():
         raise OSError("Error in archiving, details below\n{}".format(err))
 
 
+def ase_to_optimade(ase_obj, name_id=None):
+    result = dict(
+        id=name_id or 'ase_to_optimade_export',
+        attributes={},
+        links=dict(self=None),
+        type='structures'
+    )
+    result['attributes']['immutable_id'] = name_id or 'ase_to_optimade_export'
+    result['attributes']['lattice_vectors'] = np.round(ase_obj.cell, 4).tolist()
+    result['attributes']['cartesian_site_positions'] = []
+    result['attributes']['species_at_sites'] = []
+    for atom in ase_obj:
+        result['attributes']['cartesian_site_positions'].append(np.round(atom.position, 4).tolist())
+        result['attributes']['species_at_sites'].append(atom.symbol)
+    return dict(data=[result])
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: utils.py label")
         sys.exit()
+
     calcs = calculations_for_label(sys.argv[1])
     for label, uuid in calcs.items():
         get_files(label, uuid, FOLDER)

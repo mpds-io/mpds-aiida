@@ -3,7 +3,6 @@ This is the module to quickly (re-)run the CRYSTAL properties
 locally at the AiiDA master, however outside of the AiiDA graph
 NB
 ln -s /root/bin/Pproperties /usr/bin/Pproperties
-apt-get -y install openmpi-bin
 """
 import os
 import time
@@ -250,7 +249,6 @@ def properties_export(bands_data, dos_data, ase_struct):
     if not expected_metal and not direct_gap and not indirect_gap:
         warnings.warn('%s: SUSPICION FOR NON-METAL WITHOUT BAND GAPS' % ase_struct.get_chemical_formula())
 
-    # export only the range of the interest
     E_MIN, E_MAX = -10, 20
     stripes = stripes[ (stripes[:,0] > E_MIN) & (stripes[:,0] < E_MAX) ]
     dos = []
@@ -260,16 +258,11 @@ def properties_export(bands_data, dos_data, ase_struct):
     dos_energies = dos_energies[ (dos_energies > E_MIN) & (dos_energies < E_MAX) ]
 
     return {
-        # gaps
         'direct_gap': direct_gap,
         'indirect_gap': indirect_gap,
-
-        # dos values
         'dos': np.round(np.array(dos), 3).tolist(),
         'levels': np.round(dos_energies, 3).tolist(),
         'e_fermi': dos_data['e_fermi'],
-
-        # bands values
         'k_points': bands_data.get_array('kpoints').tolist(),
         'stripes': np.round(stripes, 3).tolist(),
     }, None

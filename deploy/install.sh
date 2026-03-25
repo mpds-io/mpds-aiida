@@ -89,6 +89,7 @@ cat $(dirname $0)/sysctl.conf >> /etc/sysctl.conf
 pip install --break-system-packages git+https://github.com/tilde-lab/aiida-crystal-dft
 pip install --break-system-packages git+https://github.com/tilde-lab/yascheduler
 pip install --break-system-packages git+https://github.com/mpds-io/dft_organizer
+pip install --break-system-packages git+https://github.com/mpds-io/aiida-mpds-monitor
 
 git clone https://github.com/mpds-io/mpds-aiida /data/mpds-aiida
 pip install --break-system-packages /data/mpds-aiida/
