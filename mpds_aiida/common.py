@@ -13,9 +13,10 @@ from aiida_crystal_dft.io.d12 import D12
 from aiida_crystal_dft.io.basis import BasisFile # NB only used to determine ecp
 from mpds_client import APIError
 
-from mpds_aiida import TEMPLATE_DIR
 from .spacegroups import sg_to_crystal_system
 
+
+TEMPLATE_DIR = os.path.join(os.getenv('HOME') or '/tmp', '.aiida', 'mpds_aiida') # NB also install.py
 
 verbatim_basis = namedtuple("basis", field_names="content, all_electron")
 

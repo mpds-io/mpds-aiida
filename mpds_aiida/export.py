@@ -7,7 +7,7 @@ import sys
 import shutil
 from distutils import spawn
 import subprocess
-from enum import Enum, unique
+from enum import StrEnum, unique
 
 import numpy as np
 
@@ -15,12 +15,11 @@ from aiida.orm import load_node
 from aiida.orm import QueryBuilder, WorkChainNode, CalcJobNode
 from aiida_crystal_dft.io.d12 import D12
 
-from mpds_aiida.workflows import GEOMETRY_LABEL, PROPERTIES_LABEL
-from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
+from mpds_aiida.workflows.crystal import MPDSCrystalWorkChain
 
 
 @unique
-class CalcLabel(Enum):
+class CalcLabel(StrEnum):
     ELECTRON = 'ELECTRON'
     PHONON = 'PHONON'
     HFORM = 'HFORM'
@@ -29,8 +28,8 @@ class CalcLabel(Enum):
     STRUCT = 'STRUCT'
 
 OUTPUT_FILES = {
-    GEOMETRY_LABEL: ['fort.34', 'fort.9'],
-    PROPERTIES_LABEL: ['fort.25']
+    'Geometry optimization': ['fort.34', 'fort.9'],
+    'One-electron properties': ['fort.25']
 }
 
 EXEC = '7z' # can be 7zz on Mac
@@ -40,7 +39,7 @@ ARCHIVE_FILE = '/tmp/calc.7z'
 
 def calculations_for_label(label):
     qb = QueryBuilder()
-    qb.append(MPDSCrystalWorkchain, filters={'label': {'like': label}}, tag='root')
+    qb.append(MPDSCrystalWorkChain, filters={'label': {'like': label}}, tag='root')
     qb.append(WorkChainNode, with_incoming='root', tag='parent')
     qb.append(CalcJobNode, with_incoming='parent', project=['label', 'uuid'])
     return {label: uuid for label, uuid in qb.iterall()}
