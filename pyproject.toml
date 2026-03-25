@@ -59,6 +59,9 @@ include = ["mpds_aiida*"]
 [tool.setuptools.cmdclass]
 build_py = "install.CustomBuild"
 
+[tool.setuptools.dynamic]
+version = {attr = "mpds_aiida.__version__"}
+
 [project.entry-points."aiida.workflows"]
 "crystal.mpds" = "mpds_aiida.workflows.mpds:MPDSStructureWorkchain"
 "crystal.cif" = "mpds_aiida.workflows.cif:CIFStructureWorkchain"
