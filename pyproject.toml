@@ -57,7 +57,7 @@ include = ["mpds_aiida*"]
 "mpds_aiida" = ["calc_templates/*"]
 
 [tool.setuptools.cmdclass]
-install = "install:CustomBuild"
+build_py = "install.CustomBuild"
 
 [project.entry-points."aiida.workflows"]
 "crystal.mpds" = "mpds_aiida.workflows.mpds:MPDSStructureWorkchain"

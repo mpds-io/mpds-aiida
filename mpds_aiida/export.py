@@ -13,7 +13,7 @@ import numpy as np
 
 from aiida.orm import load_node
 from aiida.orm import QueryBuilder, WorkChainNode, CalcJobNode
-from aiida_crystal_dft.io.d12_write import write_input
+from aiida_crystal_dft.io.d12 import D12
 
 from mpds_aiida.workflows import GEOMETRY_LABEL, PROPERTIES_LABEL
 from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
@@ -62,8 +62,9 @@ def get_files(calc_label, uuid, folder):
         # CRYSTAL run
         basis_family = calc.inputs.basis_family
         basis_family.set_structure(calc.inputs.structure)
+        input_d12 = D12(input_dict, basis_family)
         with open(os.path.join(dst_folder, 'INPUT'), 'w') as f:
-            print(write_input(input_dict, basis_family), file=f)
+            print(input_d12, file=f)
     else:
         # properties run
         from aiida_crystal_dft.io.d3 import D3
