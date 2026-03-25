@@ -7,6 +7,7 @@ import sys
 import shutil
 from distutils import spawn
 import subprocess
+from enum import Enum, unique
 
 import numpy as np
 
@@ -18,11 +19,21 @@ from mpds_aiida.workflows import GEOMETRY_LABEL, PROPERTIES_LABEL
 from mpds_aiida.workflows.crystal import MPDSCrystalWorkchain
 
 
+@unique
+class CalcLabel(Enum):
+    ELECTRON = 'ELECTRON'
+    PHONON = 'PHONON'
+    HFORM = 'HFORM'
+    ELASTIC = 'ELASTIC'
+    TRANSPORT = 'TRANSPORT'
+    STRUCT = 'STRUCT'
+
 OUTPUT_FILES = {
     GEOMETRY_LABEL: ['fort.34', 'fort.9'],
     PROPERTIES_LABEL: ['fort.25']
 }
 
+EXEC = '7z' # can be 7zz on Mac
 FOLDER = '/tmp/calc'
 ARCHIVE_FILE = '/tmp/calc.7z'
 
@@ -36,6 +47,9 @@ def calculations_for_label(label):
 
 
 def get_files(calc_label, uuid, folder):
+    """
+    TODO this should be refactored
+    """
     calc = load_node(uuid)
     label = calc_label.split(':')[1].strip()
     repo_folder = calc.outputs.retrieved
@@ -71,12 +85,16 @@ def get_files(calc_label, uuid, folder):
 
 
 def archive():
-    if spawn.find_executable("7z") is None:
+    """
+    TODO this should be refactored
+    """
+    if spawn.find_executable(EXEC) is None:
         raise FileExistsError("7z archiver is not found on the system!")
-    proc = subprocess.Popen(["7z", "a", "-r", ARCHIVE_FILE, FOLDER],
+
+    proc = subprocess.Popen([EXEC, "a", "-r", ARCHIVE_FILE, FOLDER],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
-    out, err = proc.communicate()
+    _, err = proc.communicate()
     if err:
         raise OSError("Error in archiving, details below\n{}".format(err))
 
@@ -100,7 +118,7 @@ def ase_to_optimade(ase_obj, name_id=None):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: utils.py label")
+        print("Usage: script.py label")
         sys.exit()
 
     calcs = calculations_for_label(sys.argv[1])
