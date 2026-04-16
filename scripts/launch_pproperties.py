@@ -2,7 +2,8 @@ from aiida import load_profile
 load_profile()
 from aiida.orm import load_code, Dict
 from mpds_aiida.workflows.properties import MPDSPropertiesWorkChain
-from aiida.engine import submit
+# from aiida.engine import submit
+from aiida.engine import run
 
 
 builder = MPDSPropertiesWorkChain.get_builder()
@@ -27,4 +28,5 @@ builder.options = Dict(dict={
     'max_wallclock_seconds': 3600,
 })
 
-submit(builder)
+run(builder)
+# submit(builder)
