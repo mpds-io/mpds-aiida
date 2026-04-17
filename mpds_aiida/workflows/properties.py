@@ -5,7 +5,8 @@ from aiida.engine import WorkChain, ToContext
 from aiida.orm import Code, Dict, SinglefileData, load_node
 from aiida_crystal_dft.workflows.base import BasePropertiesWorkChain
 from aiida_crystal_dft.io.f9 import Fort9
-from aiida_crystal_dft.utils.kpoints import get_shrink_kpoints_path, get_data_class
+from aiida_crystal_dft.utils.kpoints import get_shrink_kpoints_path
+from aiida_crystal_dft.utils import get_data_class
 
 
 class CustomPropertiesWorkChain(BasePropertiesWorkChain):
