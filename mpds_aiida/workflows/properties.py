@@ -1,11 +1,11 @@
-import tempfile
-from aiida import orm
-from aiida.engine import WorkChain, ToContext
-from aiida.orm import Code, Dict, SinglefileData
-from aiida_crystal_dft.workflows.base import BasePropertiesWorkChain
-
-from aiida_crystal_dft.io.f9 import Fort9
 import os
+import tempfile
+
+from aiida.engine import WorkChain, ToContext
+from aiida.orm import Code, Dict, SinglefileData, load_node
+from aiida_crystal_dft.workflows.base import BasePropertiesWorkChain
+from aiida_crystal_dft.io.f9 import Fort9
+from aiida_crystal_dft.utils.kpoints import get_shrink_kpoints_path, get_data_class
 
 
 class CustomPropertiesWorkChain(BasePropertiesWorkChain):
@@ -22,8 +22,6 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
             try:
                 wf = Fort9(f)  # trying to initialize Fort9 with a file-like object
             except TypeError:
-                import tempfile
-                import os
                 with tempfile.TemporaryDirectory() as tmpdir:
                     fort9_path = os.path.join(tmpdir, 'fort.9')
                     # copy content of the file-like object to a temporary file
@@ -36,7 +34,6 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
             if 'bands' not in parameters_dict['band']:
                 self.logger.info('Proceeding with automatic generation of k-points path')
                 structure = wf.get_structure()
-                from aiida_crystal_dft.utils.kpoints import get_shrink_kpoints_path
                 shrink, points, path = get_shrink_kpoints_path(structure)
                 parameters_dict['band']['shrink'] = shrink
                 parameters_dict['band']['bands'] = path
@@ -56,9 +53,7 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
             if 'last' not in parameters_dict['dos']:
                 parameters_dict['dos']['last'] = wf.get_ao_number()
 
-        from aiida_crystal_dft.utils import get_data_class
         return get_data_class('dict')(dict=parameters_dict)
-
 
 
 class MPDSPropertiesWorkChain(WorkChain):
@@ -74,7 +69,7 @@ class MPDSPropertiesWorkChain(WorkChain):
         spec.expose_outputs(CustomPropertiesWorkChain)
 
     def prepare_wavefunction(self):
-        calc = orm.load_node(self.inputs.crystal_calc_uuid.value)
+        calc = load_node(self.inputs.crystal_calc_uuid.value)
 
         if 'retrieved' not in calc.outputs:
             self.report("Calculation does not contain retrieved")
@@ -88,14 +83,11 @@ class MPDSPropertiesWorkChain(WorkChain):
         with retrieved.open('fort.9', mode='rb') as f:
             content = f.read()
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.fort9') as tmp:
+        with tempfile.NamedTemporaryFile(suffix='.fort9') as tmp:
             tmp.write(content)
             tmp.flush()
-            fort9 = SinglefileData(tmp.name, filename='fort.9').store()
-            os.unlink(tmp.name)
-
-        self.ctx.fort9 = fort9
-        self.report(f"Created SinglefileData PK={fort9.pk} with file fort.9")
+            self.ctx.fort9 = SinglefileData(tmp.name, filename='fort.9').store()
+            self.report(f"Created SinglefileData PK={fort9.pk} with file fort.9")
 
     def run_properties(self):
         default_resources = {
