@@ -2,7 +2,7 @@ import os
 import tempfile
 
 from aiida.engine import WorkChain, ToContext
-from aiida.orm import Code, Dict, SinglefileData, load_node
+from aiida.orm import Code, Dict, SinglefileData, load_node, Str
 from aiida_crystal_dft.workflows.base import BasePropertiesWorkChain
 from aiida_crystal_dft.io.f9 import Fort9
 from aiida_crystal_dft.utils.kpoints import get_shrink_kpoints_path
@@ -63,7 +63,7 @@ class MPDSPropertiesWorkChain(WorkChain):
     def define(cls, spec):
         super().define(spec)
         spec.input('code', valid_type=Code)
-        spec.input('crystal_calc_uuid', valid_type=orm.Str)
+        spec.input('crystal_calc_uuid', valid_type=Str)
         spec.input('parameters', valid_type=Dict, required=False)
         spec.input('options', valid_type=Dict, required=False)
         spec.outline(cls.prepare_wavefunction, cls.run_properties, cls.finalize)
@@ -88,7 +88,7 @@ class MPDSPropertiesWorkChain(WorkChain):
             tmp.write(content)
             tmp.flush()
             self.ctx.fort9 = SinglefileData(tmp.name, filename='fort.9').store()
-            self.report(f"Created SinglefileData PK={fort9.pk} with file fort.9")
+            self.report(f"Created SinglefileData PK={self.ctx.fort9.pk} with file fort.9")
 
     def run_properties(self):
         default_resources = {
