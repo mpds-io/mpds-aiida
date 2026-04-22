@@ -70,3 +70,4 @@ version = {attr = "mpds_aiida.__version__"}
 "fleur.forces" = "mpds_aiida.workflows.fleur_phonopy:FleurForcesWorkChain"
 "fleur.mpds" = "mpds_aiida.workflows.fleur_mpds:MPDSFleurStructureWorkChain"
 "fleur.dos_seebeck" = "mpds_aiida.workflows.fleur_seebeck.FleurDOSLocalWorkChain"
+"crystal.mpds_seebeck" = "mpds_aiida.workflows.crystal_seebeck:MPDSCrystalSeebeckWorkChain"

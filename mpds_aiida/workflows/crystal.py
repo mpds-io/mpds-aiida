@@ -7,7 +7,7 @@ from abc import abstractmethod
 from aiida.engine import WorkChain, if_, while_
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import ExitCode
-from aiida.orm import Code
+from aiida.orm import Code, StructureData
 from aiida.orm.nodes.data.base import to_aiida_type
 from aiida_crystal_dft.utils import get_data_class, recursive_update
 from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
@@ -33,6 +33,12 @@ class MPDSCrystalWorkChain(WorkChain):
         # just one optional input with the YML file contents in which all the options are stored
         # if input is not given, it is taken from the default location
         # it is possible to give incomplete parameters, they will be completed with defaults
+        spec.input(
+            'structure',
+            valid_type=StructureData,
+            required=False,
+            default=lambda: None
+        )
         spec.input('workchain_options',
                    valid_type=get_data_class('dict'),
                    required=False,
@@ -54,6 +60,16 @@ class MPDSCrystalWorkChain(WorkChain):
                              cls.check_and_get_results
                          )
                      ))
+        spec.outline(
+            cls.init_inputs,
+            while_(cls.has_calc_to_run)(
+                if_(cls.is_needed)(
+                    cls.run_calc,
+                    cls.check_and_get_results
+                )
+            ),
+            cls.run_properties_if_ready
+        )
 
         # define outputs
         spec.expose_outputs(BaseCrystalWorkChain, exclude=('output_parameters', ))
@@ -68,10 +84,15 @@ class MPDSCrystalWorkChain(WorkChain):
 
         # 1) get the structure (label in metadata.label!)
         self.ctx.codes = AttributeDict()
-        self.ctx.structure = self.get_geometry()
+        structure = self.get_geometry()
 
-        if isinstance(self.ctx.structure, ExitCode):  # FIXME
-            return self.ctx.structure
+        if structure is None:
+            return self.exit_codes.INPUT_ERROR
+
+        if isinstance(structure, ExitCode):
+            return structure
+
+        self.ctx.structure = structure
 
         # 2) find the bonding type if needed; if not, just use the default options
         if not self.inputs.check_for_bond_type:
@@ -171,9 +192,15 @@ class MPDSCrystalWorkChain(WorkChain):
             self.report('Input validation failed!')
             return self.exit_codes.INPUT_ERROR
 
-    @abstractmethod
     def get_geometry(self):
-        raise NotImplemented
+        if 'structure' in self.inputs and self.inputs.structure is not None:
+            return self.inputs.structure
+
+        # fallback
+        if hasattr(self, 'mpds_query'):
+            return None  
+
+        return None
 
     def has_calc_to_run(self):
         self.ctx.running_calc += 1
@@ -271,24 +298,115 @@ class MPDSCrystalWorkChain(WorkChain):
         return self.to_context(**{calculation: crystal_run})
 
     def _run_calc_properties(self):
-        raise NotImplemented
+        calculation = self.ctx.calculations[self.ctx.running_calc]
+
+        inputs = BasePropertiesWorkChain.get_builder()
+
+        # сheck code
+        if 'properties' not in self.ctx.codes:
+            self.report('PROPERTIES code not given as input; exiting!')
+            return self.exit_codes.ERROR_INVALID_CODE
+
+        inputs.code = self.ctx.codes['properties']
+
+        metadata = self.ctx.metadata[calculation]
+
+        # get parent calculation and check if it is finished ok
+        after = metadata.get('after', {})
+        prev_calc_name = after.get('calc')
+
+        if prev_calc_name is None:
+            self.report(f"{calculation}: No parent calculation specified via 'after'")
+            return self.exit_codes.INPUT_ERROR
+
+        prev_calc = self.ctx.get(prev_calc_name)
+
+        if prev_calc is None or not prev_calc.is_finished_ok:
+            self.report(f"{calculation}: Parent calculation '{prev_calc_name}' not finished OK")
+            return self.exit_codes.INPUT_ERROR
+
+        # pass wavefunction from parent calc
+        if 'output_wavefunction' not in prev_calc.outputs:
+            self.report(f"{calculation}: No wavefunction in parent calculation outputs")
+            return self.exit_codes.INPUT_ERROR
+
+        inputs.wavefunction = prev_calc.outputs.output_wavefunction
+
+        inputs.parameters = get_data_class('dict')(
+            dict=self.ctx.inputs[calculation]['properties']
+        )
+
+        # restart
+        if calculation in self.ctx.restart_inputs:
+            inputs.restart_params = get_data_class('dict')(
+                dict={
+                    str(k): v['properties']
+                    for k, v in self.ctx.restart_inputs[calculation].items()
+                }
+            )
+
+        # metadata
+        workchain_label = self.inputs.metadata.get('label', 'MPDS PROPERTIES workchain')
+        calc_label = metadata.pop('label') if 'label' in metadata else calculation
+
+        inputs.options = get_data_class('dict')(dict=metadata)
+
+        inputs.metadata = {
+            'label': f"{workchain_label}: {calc_label}",
+            'description': self.inputs.metadata.get('description', '')
+        }
+
+        properties_run = self.submit(BasePropertiesWorkChain, **inputs)
+
+        return self.to_context(**{calculation: properties_run})
 
     def check_and_get_results(self):
         calculation = self.ctx.calculations[self.ctx.running_calc]
         calc = self.ctx.get(calculation)
+
         ok_finish = calc.is_finished_ok
 
-        # check if this was optimization
-        is_optimization = self.ctx.is_optimization
-        if is_optimization:
-            if not ok_finish:
-                return self.exit_codes.ERROR_OPTIMIZATION_FAILED
-            self.out_many(self.exposed_outputs(calc, BaseCrystalWorkChain))
+        # FAIL SAFE: stop everything if optimization failed
+        if self.ctx.is_optimization and not ok_finish:
+            self.report("Optimization failed → skipping all downstream calculations")
+            return self.exit_codes.ERROR_OPTIMIZATION_FAILED
+
+        # store structure
+        if self.ctx.is_optimization and ok_finish:
             self.ctx.optimized_structure = calc.outputs.output_structure
+
+        # expose outputs
         if ok_finish:
             self.out(f'output_parameters.{calculation}', calc.outputs.output_parameters)
+
+            # ✅ SAFE HOOK FOR PROPERTIES
+            if (
+                hasattr(calc.outputs, "output_wavefunction")
+                and "properties" in self.ctx.calculations
+            ):
+                self.report("SCF OK → properties eligible")
+                self.ctx.ready_for_properties = True
+                self.ctx.wavefunction = calc.outputs.output_wavefunction
+
         else:
-            self.report(f'{calculation} has failed, no outputs are exposed')
+            self.report(f'{calculation} failed → skipping outputs')
+            
+    def run_properties_if_ready(self):
+        if not getattr(self.ctx, "ready_for_properties", False):
+            self.report("Properties skipped (SCF not OK)")
+            return
+
+        self.report("Launching properties WorkChain")
+
+        from .properties import MPDSPropertiesWorkChain
+
+        inputs = {
+            "code": self.ctx.codes["properties"],
+            "wavefunction": self.ctx.wavefunction,
+        }
+
+        running = self.submit(MPDSPropertiesWorkChain, **inputs)
+        return self.to_context(properties=running)
 
     # @staticmethod
     # def correctly_finalized(calc_string):

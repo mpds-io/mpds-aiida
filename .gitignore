@@ -66,3 +66,6 @@ target/
 # Project specific
 run.py
 options.yml
+
+/node_modules
+*.json
