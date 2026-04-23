@@ -158,10 +158,23 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
         else:
             options_node = get_data_class('dict')(dict=default_options)
 
+        if 'properties_parameters' in self.inputs:
+            params_node = self.inputs.properties_parameters
+        else:
+            params_node = get_data_class('dict')(dict={
+                'newk': {'k_points': [8, 8], 'fermi': True},
+                'boltztra': {
+                    'trange': [300, 800, 50],
+                    'murange': [-0.15, 0.15, 0.001],
+                    'tdfrange': [-0.15, 0.15, 0.001],
+                    'relaxtim': 10,
+                },
+            })
+
         inputs = {
             'code': self.inputs.properties_code,
             'wavefunction': self.ctx.wavefunction,
-            'parameters': self.inputs.get('properties_parameters', get_data_class('dict')(dict={})),
+            'parameters': params_node,
             'options': options_node,
         }
 
