@@ -2,7 +2,6 @@
 The base workflow for AiiDA combining CRYSTAL and MPDS
 """
 from copy import deepcopy
-from abc import abstractmethod
 
 from aiida.engine import WorkChain, if_, while_
 from aiida.common.extendeddicts import AttributeDict
@@ -10,7 +9,7 @@ from aiida.engine import ExitCode
 from aiida.orm import Code, StructureData
 from aiida.orm.nodes.data.base import to_aiida_type
 from aiida_crystal_dft.utils import get_data_class, recursive_update
-from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
+from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain
 
 from ..common import guess_metal, get_template
 
@@ -53,13 +52,6 @@ class MPDSCrystalWorkChain(WorkChain):
                    serializer=to_aiida_type)
 
         # define workchain routine
-        spec.outline(cls.init_inputs,
-                     while_(cls.has_calc_to_run)(
-                         if_(cls.is_needed)(
-                             cls.run_calc,
-                             cls.check_and_get_results
-                         )
-                     ))
         spec.outline(
             cls.init_inputs,
             while_(cls.has_calc_to_run)(
@@ -67,13 +59,11 @@ class MPDSCrystalWorkChain(WorkChain):
                     cls.run_calc,
                     cls.check_and_get_results
                 )
-            ),
-            cls.run_properties_if_ready
+            )
         )
 
         # define outputs
         spec.expose_outputs(BaseCrystalWorkChain, exclude=('output_parameters', ))
-        spec.expose_outputs(BasePropertiesWorkChain)
         spec.output_namespace('output_parameters', valid_type=get_data_class('dict'), required=False, dynamic=True)
         spec.exit_code(410, 'INPUT_ERROR', 'Error in input')
         spec.exit_code(411, 'ERROR_INVALID_CODE', 'Non-existent code is given')
@@ -183,7 +173,6 @@ class MPDSCrystalWorkChain(WorkChain):
                     self.ctx.restart_inputs[c][err] = c_err_input
 
         self.ctx.running_calc = -1
-        self.ctx.running_calc_type = None
         self.ctx.is_optimization = False
 
     def validate_inputs(self, options):
@@ -235,25 +224,13 @@ class MPDSCrystalWorkChain(WorkChain):
             is_calc_needed = False
         return is_calc_needed
 
-    # def needs_properties_run(self):
-    #     if "properties_code" not in self.inputs:
-    #         self.logger.warning("No properties code given as input, hence skipping electronic properties calculation")
-    #         self.ctx.need_electronic_properties = False
-    #         return False
-    #     result = self.inputs.options.get_dict().get('need_properties', self.DEFAULT['need_electronic_properties'])
-    #     self.ctx.need_electronic_properties = result
-    #     if not result:
-    #         self.logger.warning("Skipping electronic properties calculation")
-    #     return result
-
     def run_calc(self):
         calculation = self.ctx.calculations[self.ctx.running_calc]
         calc_type = self.ctx.metadata[calculation].pop('calc_type')
-        if calc_type not in ('crystal', 'properties'):
+        if calc_type != 'crystal':
             self.report(f'{calculation}: Unsupported calculation type {calc_type} in input; exiting!')
             return self.exit_codes.INPUT_ERROR
-        self.ctx.running_calc_type = calc_type
-        return self._run_calc_crystal() if calc_type == 'crystal' else self._run_calc_properties()
+        return self._run_calc_crystal()
 
     def _run_calc_crystal(self):
         calculation = self.ctx.calculations[self.ctx.running_calc]
@@ -297,69 +274,6 @@ class MPDSCrystalWorkChain(WorkChain):
         crystal_run = self.submit(BaseCrystalWorkChain, **inputs)
         return self.to_context(**{calculation: crystal_run})
 
-    def _run_calc_properties(self):
-        calculation = self.ctx.calculations[self.ctx.running_calc]
-
-        inputs = BasePropertiesWorkChain.get_builder()
-
-        # сheck code
-        if 'properties' not in self.ctx.codes:
-            self.report('PROPERTIES code not given as input; exiting!')
-            return self.exit_codes.ERROR_INVALID_CODE
-
-        inputs.code = self.ctx.codes['properties']
-
-        metadata = self.ctx.metadata[calculation]
-
-        # get parent calculation and check if it is finished ok
-        after = metadata.get('after', {})
-        prev_calc_name = after.get('calc')
-
-        if prev_calc_name is None:
-            self.report(f"{calculation}: No parent calculation specified via 'after'")
-            return self.exit_codes.INPUT_ERROR
-
-        prev_calc = self.ctx.get(prev_calc_name)
-
-        if prev_calc is None or not prev_calc.is_finished_ok:
-            self.report(f"{calculation}: Parent calculation '{prev_calc_name}' not finished OK")
-            return self.exit_codes.INPUT_ERROR
-
-        # pass wavefunction from parent calc
-        if 'output_wavefunction' not in prev_calc.outputs:
-            self.report(f"{calculation}: No wavefunction in parent calculation outputs")
-            return self.exit_codes.INPUT_ERROR
-
-        inputs.wavefunction = prev_calc.outputs.output_wavefunction
-
-        inputs.parameters = get_data_class('dict')(
-            dict=self.ctx.inputs[calculation]['properties']
-        )
-
-        # restart
-        if calculation in self.ctx.restart_inputs:
-            inputs.restart_params = get_data_class('dict')(
-                dict={
-                    str(k): v['properties']
-                    for k, v in self.ctx.restart_inputs[calculation].items()
-                }
-            )
-
-        # metadata
-        workchain_label = self.inputs.metadata.get('label', 'MPDS PROPERTIES workchain')
-        calc_label = metadata.pop('label') if 'label' in metadata else calculation
-
-        inputs.options = get_data_class('dict')(dict=metadata)
-
-        inputs.metadata = {
-            'label': f"{workchain_label}: {calc_label}",
-            'description': self.inputs.metadata.get('description', '')
-        }
-
-        properties_run = self.submit(BasePropertiesWorkChain, **inputs)
-
-        return self.to_context(**{calculation: properties_run})
-
     def check_and_get_results(self):
         calculation = self.ctx.calculations[self.ctx.running_calc]
         calc = self.ctx.get(calculation)
@@ -378,51 +292,5 @@ class MPDSCrystalWorkChain(WorkChain):
         # expose outputs
         if ok_finish:
             self.out(f'output_parameters.{calculation}', calc.outputs.output_parameters)
-
-            # ✅ SAFE HOOK FOR PROPERTIES
-            if (
-                hasattr(calc.outputs, "output_wavefunction")
-                and "properties" in self.ctx.calculations
-            ):
-                self.report("SCF OK → properties eligible")
-                self.ctx.ready_for_properties = True
-                self.ctx.wavefunction = calc.outputs.output_wavefunction
-
         else:
             self.report(f'{calculation} failed → skipping outputs')
-            
-    def run_properties_if_ready(self):
-        if not getattr(self.ctx, "ready_for_properties", False):
-            self.report("Properties skipped (SCF not OK)")
-            return
-
-        self.report("Launching properties WorkChain")
-
-        from .properties import MPDSPropertiesWorkChain
-
-        inputs = {
-            "code": self.ctx.codes["properties"],
-            "wavefunction": self.ctx.wavefunction,
-        }
-
-        running = self.submit(MPDSPropertiesWorkChain, **inputs)
-        return self.to_context(properties=running)
-
-    # @staticmethod
-    # def correctly_finalized(calc_string):
-    #     def wrapped(self):
-    #         assert calc_string in self.CALC_STRINGS
-    #         if not hasattr(self.ctx, calc_string):
-    #             return False
-    #         calc = self.ctx.get(calc_string)
-    #         return calc.is_finished_ok
-    #
-    #     return wrapped
-
-    # def run_properties_calc(self):
-    #     self.ctx.inputs.properties.wavefunction = self.ctx.optimise.outputs.output_wavefunction
-    #     self.ctx.inputs.properties.options = get_data_class('dict')(
-    #         dict=self.construct_metadata(PROPERTIES_LABEL))
-    #     # noinspection PyTypeChecker
-    #     properties_run = self.submit(BasePropertiesWorkChain, **self.ctx.inputs.properties)
-    #     return self.to_context(properties=properties_run)

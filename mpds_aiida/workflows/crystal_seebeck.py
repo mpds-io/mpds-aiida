@@ -144,29 +144,26 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
     def run_properties(self):
         self.report("Launching CustomPropertiesWorkChain for Seebeck calculation")
 
-        default_resources = {
-            'num_machines': 1,
-            'num_mpiprocs_per_machine': 1,
-        }
-        default_options = {
-            'resources': default_resources,
-            'max_wallclock_seconds': 3600,
-        }
-
         if 'properties_options' in self.inputs:
             options_node = self.inputs.properties_options
         else:
-            options_node = get_data_class('dict')(dict=default_options)
+            options_node = get_data_class('dict')(dict={
+                'resources': {
+                    'num_machines': 1,
+                    'num_mpiprocs_per_machine': 1,
+                },
+                'max_wallclock_seconds': 3600,
+            })
 
         if 'properties_parameters' in self.inputs:
             params_node = self.inputs.properties_parameters
         else:
             params_node = get_data_class('dict')(dict={
-                'newk': {'k_points': [8, 8], 'fermi': True},
+                'newk': {'k_points': [32, 32], 'fermi': True},
                 'boltztra': {
-                    'trange': [300, 800, 50],
-                    'murange': [-0.15, 0.15, 0.001],
-                    'tdfrange': [-0.15, 0.15, 0.001],
+                    'trange': [300, 600, 300],
+                    'murange': [-10, 20, 0.05],
+                    'tdfrange': [-10, 20, 0.05],
                     'relaxtim': 10,
                 },
             })

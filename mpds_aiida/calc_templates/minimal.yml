@@ -5,8 +5,6 @@ codes:
 options:
   need_phonons: false
   need_elastic_constants: false
-  need_properties: false
-
 basis_family: MPDSBSL_NEUTRAL_6TH
 
 default:

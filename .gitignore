@@ -69,3 +69,4 @@ options.yml
 
 /node_modules
 *.json
+/root/projects/mpds-aiida/.opencode
