@@ -9,7 +9,6 @@ from aiida.orm import Code
 from aiida.engine import submit
 from mpds_aiida.workflows.crystal_seebeck import MPDSCrystalSeebeckWorkChain
 
-import os
 load_profile()
 
 try:
@@ -31,10 +30,30 @@ workchain_options = get_template(workchain_options_file)
 
 properties_code = Code.get_from_string(os.getenv("PROPERTIES_CODE", "pproperties@yascheduler"))
 
+PROPERTIES_PARAMETERS = {
+    'newk': {'k_points': [32, 32], 'fermi': True},
+    'boltztra': {
+        'trange': [300, 600, 300],
+        'murange': [-10, 20, 0.05],
+        'tdfrange': [-10, 20, 0.05],
+        'relaxtim': 10,
+    },
+}
+
+PROPERTIES_OPTIONS = {
+    'resources': {
+        'num_machines': 1,
+        'num_mpiprocs_per_machine': 1,
+    },
+    'max_wallclock_seconds': 3600,
+}
+
 inputs = {
     'workchain_options': DataFactory('dict')(dict=workchain_options),
     'mpds_query': DataFactory('dict')(dict={'formulae': formula, 'sgs': sgs}),
     'properties_code': properties_code,
+    'properties_parameters': DataFactory('dict')(dict=PROPERTIES_PARAMETERS),
+    'properties_options': DataFactory('dict')(dict=PROPERTIES_OPTIONS),
     'metadata': {'label': f"{formula}/{sgs} seebeck pipeline"},
 }
 
