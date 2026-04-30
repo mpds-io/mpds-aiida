@@ -4,7 +4,7 @@ import sys
 from aiida import load_profile
 from aiida.plugins import DataFactory
 from aiida.engine import submit
-from mpds_aiida.workflows.mpds import MPDSStructureWorkChain
+from mpds_aiida.workflows.crystal_mpds import MPDSStructureWorkChain
 
 
 load_profile()

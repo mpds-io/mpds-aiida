@@ -8,7 +8,7 @@ from mpds_aiida.tests.fixtures import test_basis
 
 
 def test_workchain_run(aiida_localhost, aiida_profile, aiida_local_code_factory, test_basis):
-    from mpds_aiida.workflows.mpds import MPDSStructureWorkChain
+    from mpds_aiida.workflows.crystal_mpds import MPDSStructureWorkChain
     from aiida.plugins import DataFactory
     from aiida.engine import run
     mock_exec = TEST_DIR / 'mock' / 'crystal'
