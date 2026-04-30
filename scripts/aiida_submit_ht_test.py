@@ -6,7 +6,7 @@ from aiida import load_profile
 from aiida.plugins import DataFactory
 from aiida.orm import Code
 from aiida.engine import submit
-from mpds_aiida.workflows.mpds import MPDSStructureWorkChain
+from mpds_aiida.workflows.crystal_mpds import MPDSStructureWorkChain
 
 from mpds_client import MPDSDataRetrieval
 from mpds_aiida.common import get_mpds_phases
