@@ -63,7 +63,7 @@ build_py = "install.CustomBuild"
 version = {attr = "mpds_aiida.__version__"}
 
 [project.entry-points."aiida.workflows"]
-"crystal.mpds" = "mpds_aiida.workflows.mpds:MPDSStructureWorkchain"
+"crystal.mpds" = "mpds_aiida.workflows.crystal_mpds:MPDSStructureWorkchain"
 "crystal.cif" = "mpds_aiida.workflows.cif:CIFStructureWorkchain"
 "crystal.aiida" = "mpds_aiida.workflows.aiida:AiidaStructureWorkchain"
 "phonopy.fleur" = "mpds_aiida.workflows.fleur_phonopy:PhonopyFleurWorkChain"
