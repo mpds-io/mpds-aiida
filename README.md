@@ -5,7 +5,9 @@ Cloud factory for the accurate materials data
 
 using the MPDS data platform, AiiDA workflows, and CRYSTAL simulation engine.
 
-![MPDS](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/mpds.png "MPDS + AiiDA + CRYSTAL") ![AiiDA](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/aiida.png "AiiDA + MPDS + CRYSTAL") ![CRYSTAL](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/crystal.jpg "CRYSTAL + MPDS + AiiDA")
+![MPDS](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/mpds.png "MPDS + AiiDA") ![AiiDA](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/aiida.png "AiiDA + MPDS")
+
+![CRYSTAL](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/crystal.jpg "CRYSTAL + MPDS + AiiDA") ![FLEUR](https://raw.githubusercontent.com/mpds-io/mpds-aiida/master/fleur.jpg "FLEUR + MPDS + AiiDA")
 
 
 ## Rationale
@@ -72,7 +74,7 @@ or, to add the internal basis sets predefined in CRYSTAL:
 verdi data crystal_dft createpredefined
 ```
 
-Then the desired name ($BASIS_FAMILY) should be used in the calculation settings inside `mpds_aiida/calc_templates` (see below).
+Then the desired name ($BASIS_FAMILY) should be used in the calculation settings inside `mpds_aiida/calc_templates` (see below). As of 2026, we also support [FLEUR](https://www.flapw.de) engine as a counterpart to CRYSTAL.
 
 
 ## Usage
@@ -91,7 +93,7 @@ The following on-demand cloud providers are currently supported (resp. `yaschedu
 - [Hetzner](https://www.hetzner.com/cloud) (`hetzner_token`, `hetzner_max_nodes`), API token must be issued for a project
 - [Upcloud](https://upcloud.com) (`upcloud_login`, `upcloud_pass`, `upcloud_max_nodes`), API permissions are set in account settings
 
-At the moment of writing, the chosen default Hetzner configuration (CX51) runs a test task for **2-2.5 hours** on average and costs **EUR 35.88** per month, the chosen default Upcloud configuration (8 cores, 4Gb memory) runs a test task for **1.5 hours** on average and costs **$89** per month.
+As of 2022, the chosen default Hetzner configuration (CX51) runs a test task for **2-2.5 hours** on average and costs **EUR 35.88** per month, the chosen default Upcloud configuration (8 cores, 4Gb memory) runs a test task for **1.5 hours** on average and costs **$89** per month. As of 2026, the timings are about 1.5x better for the same costs (the details follow).
 
 More examples are given in the `scripts` subfolder.
 

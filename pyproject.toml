@@ -24,6 +24,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Chemistry",
     "Topic :: Scientific/Engineering :: Physics",
@@ -31,16 +34,15 @@ classifiers = [
     "Framework :: AiiDA"
 ]
 dependencies = [
-    "reentry>=1.3.1",
-    "six>=1.16.0",
-    "numpy>=1.17.5",
-    "ase>=3.19",
-    "jsonschema<=3.2.0",
-    "phonopy==2.19.1",
+    "reentry >= 1.3.1",
+    "numpy >= 1.17.5",
+    "ase >= 3.19",
+    "jsonschema <= 3.2.0",
+    "phonopy == 2.19.1",
     "yascheduler >= 1.0.12",
-    "aiida-phonopy>=1.2.0",
-    "aiida-fleur>=2.0.0",
-    "aiida-core==2.6.4",
+    "aiida-phonopy >= 1.2.0",
+    "aiida-fleur >= 2.0.0",
+    "aiida-core < 2.9.0",
     "aiida_crystal_dft",
     "mpds_client",
     "aiida-reoptimize @ git+https://github.com/mpds-io/aiida-reoptimize"
@@ -63,11 +65,11 @@ build_py = "install.CustomBuild"
 version = {attr = "mpds_aiida.__version__"}
 
 [project.entry-points."aiida.workflows"]
-"crystal.mpds" = "mpds_aiida.workflows.mpds:MPDSStructureWorkchain"
+"crystal.mpds" = "mpds_aiida.workflows.crystal_mpds:MPDSStructureWorkchain"
+"fleur.mpds" = "mpds_aiida.workflows.fleur_mpds:MPDSFleurStructureWorkChain"
 "crystal.cif" = "mpds_aiida.workflows.cif:CIFStructureWorkchain"
 "crystal.aiida" = "mpds_aiida.workflows.aiida:AiidaStructureWorkchain"
 "phonopy.fleur" = "mpds_aiida.workflows.fleur_phonopy:PhonopyFleurWorkChain"
 "fleur.forces" = "mpds_aiida.workflows.fleur_phonopy:FleurForcesWorkChain"
-"fleur.mpds" = "mpds_aiida.workflows.fleur_mpds:MPDSFleurStructureWorkChain"
 "fleur.dos_seebeck" = "mpds_aiida.workflows.fleur_seebeck.FleurDOSLocalWorkChain"
 "crystal.mpds_seebeck" = "mpds_aiida.workflows.crystal_seebeck:MPDSCrystalSeebeckWorkChain"

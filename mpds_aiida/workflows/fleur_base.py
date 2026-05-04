@@ -10,16 +10,16 @@ from .fleur_phonopy import PhonopyFleurWorkChain
 
 OPTIMIZERS = {
     "scf": {
-        "Adam": "aiida_reoptimize.AdamFleurSCFOptimizer",
-        "RMSprop": "aiida_reoptimize.RMSpropFleurSCFOptimizer",
-        "BFGS": "aiida_reoptimize.BFGSFleurSCFOptimizer",
-        "CG": "aiida_reoptimize.CDGFleurSCFOptimizer",
+        "Adam": "reoptimize.AdamFleurSCFOptimizer",
+        "RMSprop": "reoptimize.RMSpropFleurSCFOptimizer",
+        "BFGS": "reoptimize.BFGSFleurSCFOptimizer",
+        "CG": "reoptimize.CDGFleurSCFOptimizer",
     },
     "relax": {
-        "Adam": "aiida_reoptimize.AdamFleurRelaxOptimizer",
-        "RMSprop": "aiida_reoptimize.RMSpropFleurRelaxOptimizer",
-        "BFGS": "aiida_reoptimize.BFGSFleurRelaxOptimizer",
-        "CG": "aiida_reoptimize.CDGFleurRelaxOptimizer",
+        "Adam": "reoptimize.AdamFleurRelaxOptimizer",
+        "RMSprop": "reoptimize.RMSpropFleurRelaxOptimizer",
+        "BFGS": "reoptimize.BFGSFleurRelaxOptimizer",
+        "CG": "reoptimize.CDGFleurRelaxOptimizer",
     },
 }
 
@@ -51,11 +51,9 @@ class MPDSFleurWorkChain(WorkChain):
         spec.outline(
             cls.init_inputs,
             cls.run_optimization,
-            if_(cls.need_phonons)(cls.run_phonons),
+            if_(cls.need_phonons)(cls.run_phonons),  # ty:ignore[invalid-argument-type]
         )
-        spec.output(
-            "optimized_structure", valid_type=StructureData, required=False
-        )
+        spec.output("optimized_structure", valid_type=StructureData, required=False)
         spec.output("phonon_results", valid_type=Dict, required=False)
 
     def init_inputs(self):
@@ -63,9 +61,7 @@ class MPDSFleurWorkChain(WorkChain):
         try:
             options = get_template(config_path)
         except Exception:
-            raise FileNotFoundError(
-                f"Config file '{config_path}' not found"
-            )
+            raise FileNotFoundError(f"Config file '{config_path}' not found")
 
         user_opts = self.inputs.workchain_options.get_dict()
         if user_opts:
@@ -75,7 +71,7 @@ class MPDSFleurWorkChain(WorkChain):
         self.ctx.structure = self.inputs.structure
         self.ctx.phase_label = self.inputs.phase_label.value
 
-        # Just sends codes labels, optimizer must load them, 
+        # Just sends codes labels, optimizer must load them,
         # since loaded_code is not serializable
         self.ctx.codes = {}
         for name, label in options["codes"].items():
@@ -101,16 +97,20 @@ class MPDSFleurWorkChain(WorkChain):
             self.ctx.optimized_structure = self.ctx.structure
             return
 
-        optimizer_wc = self.get_optimizer(self.ctx.optimizer_name, self.ctx.calculator_type)
+        optimizer_wc = self.get_optimizer(
+            self.ctx.optimizer_name, self.ctx.calculator_type
+        )
 
         # Prepearing to start calcs
-        calc_params = deepcopy(
-            self.ctx.config["default"][self.ctx.calculator_type]
+        calc_params = deepcopy(self.ctx.config["default"][self.ctx.calculator_type])
+        calc_params.update(
+            {
+                "codes": {
+                    "fleur": self.ctx.codes["fleur"],
+                    "inpgen": self.ctx.codes["inpgen"],
+                }
+            }
         )
-        calc_params.update({"codes":{
-            "fleur": self.ctx.codes["fleur"],
-            "inpgen": self.ctx.codes["inpgen"],
-        }})
 
         # algorithm_settings from config
         algo_settings = (
@@ -137,7 +137,7 @@ class MPDSFleurWorkChain(WorkChain):
         label = f"{self.ctx.phase_label} - optimization"
         optimizer_inputs["metadata"] = {"label": label}
 
-        future = self.submit(optimizer_wc, **optimizer_inputs)
+        future = self.submit(optimizer_wc, **optimizer_inputs)  # ty:ignore[invalid-argument-type]
         return ToContext(optimization=future)
 
     def run_phonons(self):
@@ -151,9 +151,7 @@ class MPDSFleurWorkChain(WorkChain):
         best_calc = load_node(best_pk)
         optimized_structure = best_calc.inputs.structure
 
-        phonon_params = self.ctx.config["calculations"]["phonons"][
-            "parameters"
-        ]
+        phonon_params = self.ctx.config["calculations"]["phonons"]["parameters"]
 
         # TODO DOUBLECHECK THIS SECTION EXTRA CAREFULLY
         phonon_inputs = {
@@ -168,9 +166,7 @@ class MPDSFleurWorkChain(WorkChain):
                 # TODO add all parameters
                 dict={
                     "supercell_matrix": phonon_params["supercell_matrix"],
-                    "phonopy": {
-                        "code": load_code(self.ctx.codes["phonopy"])
-                        },
+                    "phonopy": {"code": load_code(self.ctx.codes["phonopy"])},
                 }
             ),
         }
@@ -179,7 +175,7 @@ class MPDSFleurWorkChain(WorkChain):
         label = f"{self.ctx.phase_label} - phonons"
         phonon_inputs["metadata"] = {"label": label}
 
-        future = self.submit(PhonopyFleurWorkChain, **phonon_inputs)
+        future = self.submit(PhonopyFleurWorkChain, **phonon_inputs)  # ty:ignore[invalid-argument-type]
         return ToContext(phonons=future)
 
     def get_optimizer(self, optimizer_type: str, calculation_type: str):
@@ -197,5 +193,9 @@ class MPDSFleurWorkChain(WorkChain):
             optimizer_path = OPTIMIZERS[calculation_type][optimizer_type]
             return WorkflowFactory(optimizer_path)
         except KeyError:
-            self.report(f"Invalid optimizer {optimizer_type} or calculation type {calculation_type}")
-            return WorkflowFactory(OPTIMIZERS[calculation_type]["BFGS"])  # fallback to BFGS
+            self.report(
+                f"Invalid optimizer {optimizer_type} or calculation type {calculation_type}"
+            )
+            return WorkflowFactory(
+                OPTIMIZERS[calculation_type]["BFGS"]
+            )  # fallback to BFGS

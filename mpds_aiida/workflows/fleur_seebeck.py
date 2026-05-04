@@ -1,5 +1,6 @@
 import copy
 import re
+import warnings
 
 import mpmath as mp
 import numpy as np
@@ -51,8 +52,8 @@ mp.mp.dps = 100
 def calculate_optimal_kpoints_mesh(
     structure: StructureData,
     constant: int = 354,  # Magic number that gives appropriate k-mesh
-    min_val:int = MIN_MESH,
-    max_val: int = MAX_MESH
+    min_val: int = MIN_MESH,
+    max_val: int = MAX_MESH,
 ) -> list[int]:
     """
     Automatically calculate optimal k-point mesh based on lattice parameters.
@@ -252,9 +253,7 @@ class FleurDOSLocalWorkChain(WorkChain):
 
         # Enforce mutually exclusive configurations
         if has_scf and (has_remote or has_fleurinp):
-            self.report(
-                "ERROR: SCF namespace cannot be combined with remote or fleurinp"
-            )
+            self.report("ERROR: SCF namespace cannot be combined with remote or fleurinp")
             return self.exit_codes.ERROR_INVALID_INPUT_CONFIG
 
         if not (has_scf or has_remote):
@@ -271,9 +270,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             # Validate extra keys
             extra_keys = [k for k in wf_dict if k not in wf_default]
             if extra_keys:
-                self.report(
-                    f"WARNING: wf_parameters contains extra keys: {extra_keys}"
-                )
+                self.report(f"WARNING: wf_parameters contains extra keys: {extra_keys}")
             # Merge defaults with user input
             for key, val in wf_default.items():
                 wf_dict.setdefault(key, val)
@@ -281,23 +278,17 @@ class FleurDOSLocalWorkChain(WorkChain):
             wf_dict = wf_default
 
         if wf_dict.get("kpoints_mesh_dos") is None:
-            self.report(
-                "kpoints_mesh_dos not provided, calculating automatically..."
-            )
+            self.report("kpoints_mesh_dos not provided, calculating automatically...")
             structure = self._get_structure()
             if structure is None:
-                self.report(
-                    "ERROR: Cannot calculate k-points without structure"
-                )
+                self.report("ERROR: Cannot calculate k-points without structure")
                 return self.exit_codes.ERROR_NO_STRUCTURE_FOR_KPOINTS
 
             kpoints_mesh = calculate_optimal_kpoints_mesh(structure)
             wf_dict["kpoints_mesh_dos"] = kpoints_mesh
             self.report(f"Auto-calculated k-points mesh: {kpoints_mesh}")
         else:
-            self.report(
-                f"Using provided k-points mesh: {wf_dict['kpoints_mesh_dos']}"
-            )
+            self.report(f"Using provided k-points mesh: {wf_dict['kpoints_mesh_dos']}")
 
         self.ctx.wf_dict = wf_dict
 
@@ -318,10 +309,8 @@ class FleurDOSLocalWorkChain(WorkChain):
             default_seebeck.update(user_params)
         self.ctx.seebeck_params = default_seebeck
 
-        self.report(
-            f'Workflow mode: {"SCF + DOS" if self.ctx.scf_needed else "DOS only"}'
-        )
-        self.report(f'DOS k-mesh: {wf_dict["kpoints_mesh_dos"]}')
+        self.report(f"Workflow mode: {'SCF + DOS' if self.ctx.scf_needed else 'DOS only'}")
+        self.report(f"DOS k-mesh: {wf_dict['kpoints_mesh_dos']}")
         return
 
     def _get_structure(self):
@@ -339,10 +328,7 @@ class FleurDOSLocalWorkChain(WorkChain):
                 return self.inputs.scf.structure
 
         # Try to get from fleurinp if available
-        if (
-            hasattr(self.ctx, "fleurinp_base")
-            and self.ctx.fleurinp_base is not None
-        ):
+        if hasattr(self.ctx, "fleurinp_base") and self.ctx.fleurinp_base is not None:
             try:
                 return self.ctx.fleurinp_base.get_structuredata_ncf()
             except Exception:
@@ -363,9 +349,7 @@ class FleurDOSLocalWorkChain(WorkChain):
 
         # Ensure structure or fleurinp is provided in SCF namespace
         if "structure" not in scf_inputs and "fleurinp" not in scf_inputs:
-            self.report(
-                'ERROR: SCF namespace must contain "structure" or "fleurinp"'
-            )
+            self.report('ERROR: SCF namespace must contain "structure" or "fleurinp"')
             return self.exit_codes.ERROR_INVALID_INPUT_CONFIG
 
         # Set label for SCF workchain
@@ -394,9 +378,7 @@ class FleurDOSLocalWorkChain(WorkChain):
         self.ctx.remote_for_dos = remote_folder
         self.ctx.fleurinp_base = self.ctx.scf_wc.outputs.fleurinp
 
-        self.report(
-            f"Obtained converged charge density from SCF (PK={self.ctx.scf_wc.pk})"
-        )
+        self.report(f"Obtained converged charge density from SCF (PK={self.ctx.scf_wc.pk})")
         return
 
     def prepare_dos_from_remote(self):
@@ -409,9 +391,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             self.report("Using user-provided fleurinp for DOS calculation")
         else:
             try:
-                self.ctx.fleurinp_base = get_fleurinp_from_remote_data(
-                    self.inputs.remote
-                )
+                self.ctx.fleurinp_base = get_fleurinp_from_remote_data(self.inputs.remote)
                 self.report("Extracted fleurinp from remote folder")
             except Exception as exc:
                 self.report(f"Failed to extract fleurinp from remote: {exc}")
@@ -442,9 +422,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             remote = last_base_wc.outputs.remote_folder
             return remote
         except (NotExistent, AttributeError) as exc:
-            raise RuntimeError(
-                f"Failed to get remote_folder from PK={last_base_wc.pk}: {exc}"
-            )
+            raise RuntimeError(f"Failed to get remote_folder from PK={last_base_wc.pk}: {exc}")
 
     def run_dos_calculation(self):
         """Submit FLEUR calculation for DOS with custom k-mesh"""
@@ -471,17 +449,13 @@ class FleurDOSLocalWorkChain(WorkChain):
         })
 
         # NB: https://aiida-fleur.readthedocs.io/en/latest/module_guide/code.html#aiida_fleur.data.fleurinpmodifier.FleurinpModifier.set_kpointmesh
-        fleurmode.set_kpointmesh(
-            mesh=self.ctx.wf_dict["kpoints_mesh_dos"], switch=True
-        )
+        fleurmode.set_kpointmesh(mesh=self.ctx.wf_dict["kpoints_mesh_dos"], switch=True)
 
         # Validate and freeze
         try:
             fleurmode.show(display=False, validate=True)
         except Exception as exc:
-            self.report(
-                f"Problematic XML snippet: {fleurmode.show(validate=False)}"
-            )
+            self.report(f"Problematic XML snippet: {fleurmode.show(validate=False)}")
             self.report(f"Input validation failed: {exc}")
             return self.exit_codes.ERROR_INVALID_INPUT_FILE
 
@@ -538,9 +512,7 @@ class FleurDOSLocalWorkChain(WorkChain):
 
             self.ctx.dos_energy_ev = dos_data["energy_ev"]
             self.ctx.dos_total = dos_data["total_dos"]
-            self.ctx.dos_spin_polarized = dos_data.get(
-                "is_spin_polarized", False
-            )
+            self.ctx.dos_spin_polarized = dos_data.get("is_spin_polarized", False)
 
             # Store as XyData for provenance
             dos_xy = XyData()
@@ -561,12 +533,12 @@ class FleurDOSLocalWorkChain(WorkChain):
 
             dos_xy.set_y(y_arrays, y_names, y_units)
             dos_xy.label = "dos_from_local_files"
-            dos_xy.description = f'{self.ctx.phase} DOS from Local files with {self.ctx.wf_dict["kpoints_mesh_dos"]} k-mesh'
+            dos_xy.description = (
+                f"{self.ctx.phase} DOS from Local files with {self.ctx.wf_dict['kpoints_mesh_dos']} k-mesh"
+            )
             self.ctx.dos_xy = dos_xy
 
-            self.report(
-                f'Parsed DOS with {len(dos_data["energy_ev"])} energy points'
-            )
+            self.report(f"Parsed DOS with {len(dos_data['energy_ev'])} energy points")
             self.ctx.successful = True
 
         except Exception as exc:
@@ -579,9 +551,7 @@ class FleurDOSLocalWorkChain(WorkChain):
     def calculate_seebeck_coefficient(self):
         """Calculate Seebeck coefficient using parsed DOS"""
         if not self.ctx.successful:
-            self.report(
-                "Skipping Seebeck calculation due to failed DOS parsing"
-            )
+            self.report("Skipping Seebeck calculation due to failed DOS parsing")
             return
 
         try:
@@ -594,9 +564,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             elif hasattr(self.ctx, "fleurinp_base"):
                 # Try to get structure from fleurinp
                 try:
-                    structure = (
-                        self.ctx.fleurinp_base.get_structuredata_ncf()
-                    )  # should return StructureData
+                    structure = self.ctx.fleurinp_base.get_structuredata_ncf()  # should return StructureData
                     volume_ang3 = structure.get_cell_volume()
                     volume_cm3 = volume_ang3 * AngsCubeToCmCube
                 except Exception:
@@ -654,9 +622,7 @@ class FleurDOSLocalWorkChain(WorkChain):
                     float(self.ctx.dos_energy_ev.min()),
                     float(self.ctx.dos_energy_ev.max()),
                 ],
-                "dos_integral": float(
-                    simpson(self.ctx.dos_total, self.ctx.dos_energy_ev)
-                ),
+                "dos_integral": float(simpson(self.ctx.dos_total, self.ctx.dos_energy_ev)),
                 "spin_polarized": self.ctx.dos_spin_polarized,
             })
 
@@ -664,18 +630,12 @@ class FleurDOSLocalWorkChain(WorkChain):
         if hasattr(self.ctx, "seebeck_result"):
             output_dict.update({
                 # Seebeck
-                "seebeck_coefficient_uvk": self.ctx.seebeck_result[
-                    "seebeck_coefficient_uvk"
-                ],
+                "seebeck_coefficient_uvk": self.ctx.seebeck_result["seebeck_coefficient_uvk"],
                 # N electrons
                 # If DFT calculation are correct must be very close to N valent electrons
-                "N_0K": self.ctx.seebeck_result[
-                    "N"
-                ],
+                "N_0K": self.ctx.seebeck_result["N"],
                 # Chemical potential
-                "mu_ev": self.ctx.seebeck_result[
-                    "mu_ev"
-                ],
+                "mu_ev": self.ctx.seebeck_result["mu_ev"],
                 "temperature_k": self.ctx.seebeck_params["temperature"],
                 "carrier_type": self.ctx.seebeck_params["carrier_type"],
                 "doping_cm3": self.ctx.seebeck_params["doping_cm3"],
@@ -695,11 +655,7 @@ class FleurDOSLocalWorkChain(WorkChain):
 
         # Expose DOS calculation outputs
         if hasattr(self.ctx, "dos_calc") and self.ctx.dos_calc.is_finished_ok:
-            self.out_many(
-                self.exposed_outputs(
-                    self.ctx.dos_calc, FleurBaseWorkChain, namespace="dos_calc"
-                )
-            )
+            self.out_many(self.exposed_outputs(self.ctx.dos_calc, FleurBaseWorkChain, namespace="dos_calc"))
 
         status = "successfully" if self.ctx.successful else "with failures"
         self.report(f"FleurDOSLocalWorkChain completed {status}")
@@ -712,16 +668,10 @@ def read_local_file(retrieved, filename):
     lines = content.strip().split("\n")
 
     # Skip comment/header lines (usually start with '#')
-    data_lines = [
-        line
-        for line in lines
-        if not line.strip().startswith("#") and line.strip()
-    ]
+    data_lines = [line for line in lines if not line.strip().startswith("#") and line.strip()]
 
     if not data_lines:
-        raise ValueError(
-            f"File {filename} appears empty or contains only comments"
-        )
+        raise ValueError(f"File {filename} appears empty or contains only comments")
 
     # Parse columns (energy in eV, DOS in states/eV)
     energies = []
@@ -767,9 +717,7 @@ def parse_local_dos(retrieved, has_local1, has_local2):
 
         # Verify energy grids match
         if len(e_up) != len(e_dn) or not np.allclose(e_up, e_dn, atol=1e-6):
-            raise ValueError(
-                "Energy grids in Local.1 and Local.2 do not match"
-            )
+            raise ValueError("Energy grids in Local.1 and Local.2 do not match")
 
         # Total DOS = spin_up + spin_down
         total_dos = dos_up + dos_dn
@@ -804,7 +752,7 @@ def calculate_seebeck(
     fermi_energy_ev=DEFAULT_SEEBECK.get("fermi_energy_ev", 0),
     volume_cm3=DEFAULT_SEEBECK.get("volume"),
     carrier_type=DEFAULT_SEEBECK.get("carrier_type", "hole"),
-    mu_range = DEFAULT_SEEBECK.get("mu_range", (-10, 10))
+    mu_range=DEFAULT_SEEBECK.get("mu_range", (-10, 10)),
 ):
     """
     Calculate Seebeck coefficient based on https://arxiv.org/pdf/1708.01591 thermodynamic approach.
@@ -815,7 +763,7 @@ def calculate_seebeck(
     dos_mp = [mp.mpf(d) for d in dos]
     T_mp = mp.mpf(T)
 
-    mask_0k = [e <= mp.mpf('0') for e in energy_mp]
+    mask_0k = [e <= mp.mpf("0") for e in energy_mp]
     energy_0k = [e for e, m in zip(energy_mp, mask_0k) if m]
     dos_0k = [d for d, m in zip(dos_mp, mask_0k) if m]
 
@@ -824,9 +772,7 @@ def calculate_seebeck(
     # Determine chemical potential mu
     if doping_cm3 is not None:
         if volume_cm3 is None:
-            raise ValueError(
-                "Volume (cm^3) required when specifying doping concentration"
-            )
+            raise ValueError("Volume (cm^3) required when specifying doping concentration")
 
         carriers_per_unit_cell = mp.mpf(doping_cm3) * mp.mpf(volume_cm3)
         is_p_type = carrier_type == "hole"
@@ -839,9 +785,8 @@ def calculate_seebeck(
     else:
         N_target = N_0k
 
-
     def fermi_dirac_safe(energy_ev, mu_ev, temperature_k):
-        x = -((energy_ev - mu_ev)/(KB_MPF * temperature_k))
+        x = -((energy_ev - mu_ev) / (KB_MPF * temperature_k))
         return mp.sigmoid(x, 1)
 
     def charge_neutrality(mu):
@@ -850,24 +795,30 @@ def calculate_seebeck(
         N_T = simpson(integrand, x=energy_mp)
         return N_T - N_target
 
-    mu_guess = (mp.mpf(fermi_energy_ev) - 0.25, mp.mpf(fermi_energy_ev) + 0.25) if fermi_energy_ev else (mp.mpf('-.25'), mp.mpf('.25'))
+    mu_guess = (
+        (mp.mpf(fermi_energy_ev) - 0.25, mp.mpf(fermi_energy_ev) + 0.25)
+        if fermi_energy_ev
+        else (mp.mpf("-.25"), mp.mpf(".25"))
+    )
     try:
-        mu_ev = mp.findroot(charge_neutrality, mu_guess, tol=mp.mpf('1e-8'), solver='ridder')
+        mu_ev = mp.findroot(charge_neutrality, mu_guess, tol=mp.mpf("1e-8"), solver="ridder")
     except Exception:
         # If mu_ev shifts too much
         # GIGA IMPORTANT
         # TODO: add this range into function and WorkChain
         # TODO: ADD this interval into workchain input
-        mu_scan = [mp.mpf(x) for x in range(mu_range[0], mu_range[1] + 1)] # it is gigantic interval. If it is fails it means something goes wrong
+        mu_scan = [
+            mp.mpf(x) for x in range(mu_range[0], mu_range[1] + 1)
+        ]  # it is gigantic interval. If it is fails it means something goes wrong
         vals = [charge_neutrality(mu) for mu in mu_scan]
         bracket = None
         for i in range(len(vals) - 1):
-            if vals[i] * vals[i + 1] < 0: # quite a trick to find where it change its value
+            if vals[i] * vals[i + 1] < 0:  # quite a trick to find where it change its value
                 bracket = (mu_scan[i], mu_scan[i + 1])
                 break
         if bracket is None:
             raise RuntimeError("Failed to find sign change for chemical potential")
-        mu_ev = mp.findroot(charge_neutrality, bracket, tol=mp.mpf('1e-8'), solver='ridder')
+        mu_ev = mp.findroot(charge_neutrality, bracket, tol=mp.mpf("1e-8"), solver="ridder")
 
     # Fermi-Dirac distribution
     f_vals = [fermi_dirac_safe(e, mu_ev, T_mp) for e in energy_mp]
@@ -880,19 +831,17 @@ def calculate_seebeck(
     numerator = simpson(numerator_integrand, x=energy_mp)
     denominator = simpson(denominator_integrand, x=energy_mp)
 
-
-    if mp.almosteq(denominator, mp.mpf('0'), abs_eps=mp.mpf('1e-35')):
-        raise ValueError(
-            f"Denominator unphysically small ({mp.nstr(denominator, mp.mp.dps)}).")
-
+    if mp.almosteq(denominator, mp.mpf("0"), abs_eps=mp.mpf("1e-35")):
+        raise ValueError(f"Denominator unphysically small ({mp.nstr(denominator, mp.mp.dps)}).")
 
     alpha_vk = -numerator / (denominator * T_mp)
-    alpha_uvk = alpha_vk * mp.mpf('1e6')  # V/K to uV/K
+    alpha_uvk = alpha_vk * mp.mpf("1e6")  # V/K to uV/K
 
-    if carrier_type == "hole":
-        alpha_uvk = mp.fabs(alpha_uvk)
-    else:
-        alpha_uvk = -mp.fabs(alpha_uvk)
+    if (carrier_type == "hole" and alpha_uvk < 0) or (carrier_type != "hole" and alpha_uvk > 0):
+        warnings.warn(
+            f"Seebeck sign {mp.nstr(alpha_uvk, 8)} uV/K is unexpected for "
+            f"carrier_type={carrier_type!r}. Check DOS alignment and doping."
+        )
 
     return {
         "seebeck_coefficient_uvk": float(alpha_uvk),
@@ -968,7 +917,7 @@ def example_from_remote():
     load_profile()
 
     fleur_code = load_code("fleur")
-    remote = load_node(280879) # Remote folder from previous calculations (SCF results)
+    remote = load_node(280879)  # Remote folder from previous calculations (SCF results)
 
     wf_para_dos = Dict(
         dict={
