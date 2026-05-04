@@ -4,10 +4,10 @@ WorkChain that orchestrates CRYSTAL optimization followed by Seebeck properties 
 import tempfile
 
 from aiida.engine import WorkChain, if_, ToContext
-from aiida.orm import Code, SinglefileData, StructureData
+from aiida.orm import Code, SinglefileData, StructureData, Dict
 from aiida.orm.nodes.data.base import to_aiida_type
 from aiida_crystal_dft.utils import get_data_class
-from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain, BasePropertiesWorkChain
+from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain
 
 from .mpds import MPDSStructureWorkChain
 from .aiida import AiidaStructureWorkChain
@@ -18,7 +18,6 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
 
     CRYSTAL_EXIT_CODE_MAP = {
         410: 'INPUT_ERROR',
-        411: 'ERROR_INVALID_CODE',
         412: 'ERROR_OPTIMIZATION_FAILED',
     }
 
@@ -27,13 +26,13 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
         super().define(spec)
 
         spec.input('workchain_options',
-                   valid_type=get_data_class('dict'),
+                   valid_type=Dict,
                    required=False,
-                   default=lambda: get_data_class('dict')(dict={}),
+                   default=lambda: Dict(dict={}),
                    help="Calculation options forwarded to the crystal WorkChain",
                    serializer=to_aiida_type)
         spec.input('mpds_query',
-                   valid_type=get_data_class('dict'),
+                   valid_type=Dict,
                    required=False,
                    help="MPDS query dict; if provided, MPDSStructureWorkChain is used")
         spec.input('structure',
@@ -51,12 +50,12 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
                    required=True,
                    help="CRYSTAL Properties code for the Seebeck calculation")
         spec.input('properties_parameters',
-                   valid_type=get_data_class('dict'),
+                   valid_type=Dict,
                    required=False,
                    help="Parameters forwarded to the properties WorkChain",
                    serializer=to_aiida_type)
         spec.input('properties_options',
-                   valid_type=get_data_class('dict'),
+                   valid_type=Dict,
                    required=False,
                    help="Options forwarded to the properties WorkChain",
                    serializer=to_aiida_type)
@@ -72,11 +71,11 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
 
         spec.expose_outputs(BaseCrystalWorkChain, exclude=('output_parameters',), namespace='crystal')
         spec.expose_outputs(CustomPropertiesWorkChain, namespace='properties')
-        spec.output_namespace('crystal.output_parameters', valid_type=get_data_class('dict'), required=False, dynamic=True)
+        spec.output_namespace('crystal.output_parameters', valid_type=Dict, required=False, dynamic=True)
 
         spec.exit_code(410, 'INPUT_ERROR', 'Invalid or conflicting inputs')
         spec.exit_code(450, 'ERROR_CRYSTAL_FAILED', 'The crystal WorkChain did not finish OK')
-        spec.exit_code(411, 'ERROR_INVALID_CODE', 'Non-existent code is given')
+        spec.exit_code(411, 'ERROR_INVALID_ENGINE', 'Non-existent code is given')
         spec.exit_code(412, 'ERROR_OPTIMIZATION_FAILED', 'Structure optimization failed')
         spec.exit_code(451, 'ERROR_PROPERTIES_FAILED', 'The properties WorkChain did not finish OK')
 
@@ -147,23 +146,24 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
         if 'properties_options' in self.inputs:
             options_node = self.inputs.properties_options
         else:
-            options_node = get_data_class('dict')(dict={
+            options_node = Dict(dict={
                 'resources': {
                     'num_machines': 1,
                     'num_mpiprocs_per_machine': 1,
                 },
-                'max_wallclock_seconds': 3600,
+                # dummy value, not used by yascheduler
+                'max_wallclock_seconds': 42,
             })
 
         if 'properties_parameters' in self.inputs:
             params_node = self.inputs.properties_parameters
         else:
-            params_node = get_data_class('dict')(dict={
-                'newk': {'k_points': [32, 32], 'fermi': True},
+            params_node = Dict(dict={
+                'newk': {'k_points': [48, 48], 'fermi': True},
                 'boltztra': {
                     'trange': [300, 600, 300],
-                    'murange': [-10, 20, 0.05],
-                    'tdfrange': [-10, 20, 0.05],
+                    'murange': [-0.5, 0.5, 0.05],
+                    'tdfrange': [-0.5, 0.5, 0.05],
                     'relaxtim': 10,
                 },
             })
@@ -192,13 +192,18 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
         try:
             for key in crystal.outputs.output_parameters.keys():
                 self.out(f'crystal.output_parameters.{key}', crystal.outputs.output_parameters[key])
-        except (AttributeError, TypeError):
-            pass
+        except (AttributeError, TypeError) as exc:
+            self.report(f"Warning: could not expose crystal output_parameters: {exc}")
 
     def _extract_wavefunction(self, crystal_workchain):
+        last_wavefunction = None
         for called in crystal_workchain.called:
             if not hasattr(called, 'outputs'):
                 continue
+            if hasattr(called, 'called'):
+                nested = self._extract_wavefunction(called)
+                if nested is not None:
+                    last_wavefunction = nested
             if hasattr(called.outputs, 'retrieved'):
                 retrieved = called.outputs.retrieved
                 if 'fort.9' in retrieved.list_object_names():
@@ -208,10 +213,6 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
                         tmp.write(content)
                         tmp.flush()
                         sfd = SinglefileData(tmp.name, filename='fort.9').store()
-                        self.report(f"Extracted fort.9 as SinglefileData PK={sfd.pk}")
-                        return sfd
-            if hasattr(called, 'called'):
-                result = self._extract_wavefunction(called)
-                if result is not None:
-                    return result
-        return None
+                        self.report(f"Extracted fort.9 as SinglefileData PK={sfd.pk} from PK={called.pk}")
+                        last_wavefunction = sfd
+        return last_wavefunction

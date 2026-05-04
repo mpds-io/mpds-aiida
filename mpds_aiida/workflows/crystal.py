@@ -36,7 +36,6 @@ class MPDSCrystalWorkChain(WorkChain):
             'structure',
             valid_type=StructureData,
             required=False,
-            default=lambda: None
         )
         spec.input('workchain_options',
                    valid_type=get_data_class('dict'),
@@ -66,7 +65,7 @@ class MPDSCrystalWorkChain(WorkChain):
         spec.expose_outputs(BaseCrystalWorkChain, exclude=('output_parameters', ))
         spec.output_namespace('output_parameters', valid_type=get_data_class('dict'), required=False, dynamic=True)
         spec.exit_code(410, 'INPUT_ERROR', 'Error in input')
-        spec.exit_code(411, 'ERROR_INVALID_CODE', 'Non-existent code is given')
+        spec.exit_code(411, 'ERROR_INVALID_ENGINE', 'Non-existent code is given')
         spec.exit_code(412, 'ERROR_OPTIMIZATION_FAILED', 'Structure optimization failed!')
 
     def init_inputs(self):
@@ -76,11 +75,11 @@ class MPDSCrystalWorkChain(WorkChain):
         self.ctx.codes = AttributeDict()
         structure = self.get_geometry()
 
-        if structure is None:
-            return self.exit_codes.INPUT_ERROR
-
         if isinstance(structure, ExitCode):
             return structure
+
+        if structure is None:
+            return self.exit_codes.INPUT_ERROR
 
         self.ctx.structure = structure
 
@@ -182,14 +181,7 @@ class MPDSCrystalWorkChain(WorkChain):
             return self.exit_codes.INPUT_ERROR
 
     def get_geometry(self):
-        if 'structure' in self.inputs and self.inputs.structure is not None:
-            return self.inputs.structure
-
-        # fallback
-        if hasattr(self, 'mpds_query'):
-            return None  
-
-        return None
+        return getattr(self.inputs, 'structure', None)
 
     def has_calc_to_run(self):
         self.ctx.running_calc += 1
@@ -237,7 +229,7 @@ class MPDSCrystalWorkChain(WorkChain):
         inputs = BaseCrystalWorkChain.get_builder()
         if 'crystal' not in self.ctx.codes:
             self.report('CRYSTAL code not given as input; exiting!')
-            return self.exit_codes.ERROR_INVALID_CODE
+            return self.exit_codes.ERROR_INVALID_ENGINE
         inputs.code = self.ctx.codes['crystal']
         metadata = self.ctx.metadata[calculation]
         # metadata.pop('after')

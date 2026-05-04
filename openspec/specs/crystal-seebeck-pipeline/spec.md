@@ -70,24 +70,25 @@ The WorkChain SHALL expose all outputs from both sub-workchains using AiiDA's `e
 The WorkChain SHALL define the following exit codes:
 
 - `410`: `INPUT_ERROR` — invalid or conflicting inputs
+- `411`: `ERROR_INVALID_ENGINE` — non-existent code is given
 - `450`: `ERROR_CRYSTAL_FAILED` — the crystal WorkChain did not finish OK (generic failure)
 - `412`: `ERROR_OPTIMIZATION_FAILED` — forwarded from crystal step when optimization specifically fails
 - `451`: `ERROR_PROPERTIES_FAILED` — the properties WorkChain did not finish OK
 
 #### Scenario: Exit code from crystal step
 - **WHEN** the crystal WorkChain exits with a non-zero exit status
-- **THEN** the pipeline SHALL map known exit codes (410, 411, 412) directly and return `ERROR_CRYSTAL_FAILED` (450) for unknown errors
+- **THEN** the pipeline SHALL map known exit codes (410, 412) directly and return `ERROR_CRYSTAL_FAILED` (450) for unknown errors
 
 #### Scenario: Exit code from properties step
 - **WHEN** the properties WorkChain exits with `is_finished_ok == False`
 - **THEN** the pipeline SHALL return `ERROR_PROPERTIES_FAILED` (451)
 
 ### Requirement: Wavefunction hand-off
-The WorkChain SHALL automatically extract the `fort.9` wavefunction file from the crystal step's output and pass it to the `MPDSPropertiesWorkChain` as a `SinglefileData` input, without requiring the user to provide a `crystal_calc_uuid`.
+The WorkChain SHALL automatically extract the `fort.9` wavefunction file from the **last** (SCF) CalcJob in the crystal step's output and pass it to the `MPDSPropertiesWorkChain` as a `SinglefileData` input, without requiring the user to provide a `crystal_calc_uuid`. The wavefunction from the final SCF step (not the optimization step) is required for Seebeck calculations.
 
 #### Scenario: Extracting wavefunction from crystal step
 - **WHEN** the crystal step finishes OK and has a `retrieved` folder containing `fort.9`
-- **THEN** the WorkChain SHALL extract `fort.9` as a `SinglefileData` node and pass it to the properties step
+- **THEN** the WorkChain SHALL extract `fort.9` from the last CalcJob with an available wavefunction (SCF step) as a `SinglefileData` node and pass it to the properties step
 
 #### Scenario: Missing wavefunction
 - **WHEN** the crystal step finishes OK but no wavefunction is available in its outputs
@@ -99,3 +100,24 @@ The `MPDSCrystalSeebeckWorkChain` SHALL be registered as an AiiDA workflow entry
 #### Scenario: Discovering the WorkChain
 - **WHEN** a user runs `aiida-workflow list` or uses `WorkflowFactory('crystal.mpds_seebeck')`
 - **THEN** the `MPDSCrystalSeebeckWorkChain` SHALL be discoverable and loadable
+
+### Requirement: BoltzTraP output file preservation
+The `CustomPropertiesWorkChain` SHALL extract and save BoltzTraP output files from the `retrieved` folder of the Properties CalcJob as `SinglefileData` nodes. The following files SHALL be preserved:
+
+- `SEEBECK.DAT` — Seebeck coefficient data
+- `SIGMAS.DAT` — electrical conductivity data
+- `KAPPA.DAT` — thermal conductivity data
+- `TDF.DAT` — transport distribution function data
+
+These outputs SHALL be exposed as `seebeck_dat`, `sigmas_dat`, `kappa_dat`, and `tdf_dat` respectively, and included in the `properties` namespace of the `MPDSCrystalSeebeckWorkChain`.
+
+#### Scenario: BoltzTraP files present in retrieved
+- **WHEN** the Properties calculation finishes OK and BoltzTraP output files are present in the `retrieved` folder
+- **THEN** the WorkChain SHALL save each file as a `SinglefileData` node and expose it as an output
+
+#### Scenario: BoltzTraP files absent
+- **WHEN** the Properties calculation finishes OK but BoltzTraP output files are not present
+- **THEN** the corresponding outputs SHALL be omitted (required=False)
+
+### Note
+This pipeline was designed with assistance from GLM-5.1 (ollama-cloud/glm-5.1).

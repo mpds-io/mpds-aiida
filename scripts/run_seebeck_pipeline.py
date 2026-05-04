@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import sys
-import os
-import yaml
 from aiida import load_profile
 from aiida.plugins import DataFactory
 from aiida.orm import Code
@@ -31,11 +29,11 @@ workchain_options = get_template(workchain_options_file)
 properties_code = Code.get_from_string(os.getenv("PROPERTIES_CODE", "pproperties@yascheduler"))
 
 PROPERTIES_PARAMETERS = {
-    'newk': {'k_points': [32, 32], 'fermi': True},
+    'newk': {'k_points': [48, 48], 'fermi': True},
     'boltztra': {
         'trange': [300, 600, 300],
-        'murange': [-10, 20, 0.05],
-        'tdfrange': [-10, 20, 0.05],
+        'murange': [-0.5, 0.5, 0.05],
+        'tdfrange': [-0.5, 0.5, 0.05],
         'relaxtim': 10,
     },
 }
@@ -45,7 +43,8 @@ PROPERTIES_OPTIONS = {
         'num_machines': 1,
         'num_mpiprocs_per_machine': 1,
     },
-    'max_wallclock_seconds': 3600,
+    # dummy value, not used by yascheduler
+    'max_wallclock_seconds': 42,
 }
 
 inputs = {

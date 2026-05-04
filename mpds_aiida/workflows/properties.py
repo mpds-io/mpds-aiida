@@ -6,10 +6,20 @@ from aiida.orm import Code, Dict, SinglefileData, load_node, Str
 from aiida_crystal_dft.workflows.base import BasePropertiesWorkChain
 from aiida_crystal_dft.io.f9 import Fort9
 from aiida_crystal_dft.utils.kpoints import get_shrink_kpoints_path
-from aiida_crystal_dft.utils import get_data_class
 
 
 class CustomPropertiesWorkChain(BasePropertiesWorkChain):
+    BOLTZTRAP_OUTPUT_FILES = ('SEEBECK.DAT', 'SIGMAS.DAT', 'KAPPA.DAT', 'TDF.DAT')
+
+    @classmethod
+    def define(cls, spec):
+        super().define(spec)
+        for filename in cls.BOLTZTRAP_OUTPUT_FILES:
+            spec.output(filename.lower().replace('.', '_'),
+                        valid_type=SinglefileData,
+                        required=False,
+                        help=f"BoltzTraP {filename} output")
+
     def _set_default_parameters(self, parameters):
         """Transform the input parameters by setting defaults for missing values."""
         parameters_dict = parameters.get_dict()
@@ -54,7 +64,25 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
             if 'last' not in parameters_dict['dos']:
                 parameters_dict['dos']['last'] = wf.get_ao_number()
 
-        return get_data_class('dict')(dict=parameters_dict)
+        return Dict(dict=parameters_dict)
+
+    def retrieve_results(self):
+        super().retrieve_results()
+        last_calc = self.ctx.calculations[-1]
+        if hasattr(last_calc, 'outputs') and 'retrieved' in last_calc.outputs:
+            retrieved = last_calc.outputs.retrieved
+            available = retrieved.list_object_names()
+            for filename in self.BOLTZTRAP_OUTPUT_FILES:
+                if filename in available:
+                    with retrieved.open(filename, mode='rb') as f:
+                        content = f.read()
+                    with tempfile.NamedTemporaryFile(suffix=f'.{filename.lower().replace(".", "_")}') as tmp:
+                        tmp.write(content)
+                        tmp.flush()
+                        sfd = SinglefileData(tmp.name, filename=filename).store()
+                        output_name = filename.lower().replace('.', '_')
+                        self.out(output_name, sfd)
+                        self.report(f"Saved BoltzTraP output {filename} as SinglefileData PK={sfd.pk}")
 
 
 class MPDSPropertiesWorkChain(WorkChain):
@@ -68,6 +96,8 @@ class MPDSPropertiesWorkChain(WorkChain):
         spec.input('options', valid_type=Dict, required=False)
         spec.outline(cls.prepare_wavefunction, cls.run_properties, cls.finalize)
         spec.expose_outputs(CustomPropertiesWorkChain)
+        spec.exit_code(460, 'ERROR_NO_RETRIEVED', 'Calculation does not contain retrieved folder')
+        spec.exit_code(461, 'ERROR_NO_FORT9', 'fort.9 not found in retrieved folder')
 
     def prepare_wavefunction(self):
         calc = load_node(self.inputs.crystal_calc_uuid.value)
@@ -97,7 +127,8 @@ class MPDSPropertiesWorkChain(WorkChain):
         }
         default_options = {
             'resources': default_resources,
-            'max_wallclock_seconds': 3600,
+            # dummy value, not used by yascheduler
+            'max_wallclock_seconds': 42,
         }
 
         if 'options' in self.inputs:
