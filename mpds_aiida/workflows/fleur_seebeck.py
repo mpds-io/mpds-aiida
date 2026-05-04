@@ -889,11 +889,6 @@ def calculate_seebeck(
     alpha_vk = -numerator / (denominator * T_mp)
     alpha_uvk = alpha_vk * mp.mpf('1e6')  # V/K to uV/K
 
-    if carrier_type == "hole":
-        alpha_uvk = mp.fabs(alpha_uvk)
-    else:
-        alpha_uvk = -mp.fabs(alpha_uvk)
-
     return {
         "seebeck_coefficient_uvk": float(alpha_uvk),
         "N": float(N_0k),
