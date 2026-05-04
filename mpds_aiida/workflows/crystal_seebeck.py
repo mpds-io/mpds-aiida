@@ -9,7 +9,7 @@ from aiida.orm.nodes.data.base import to_aiida_type
 from aiida_crystal_dft.utils import get_data_class
 from aiida_crystal_dft.workflows.base import BaseCrystalWorkChain
 
-from .mpds import MPDSStructureWorkChain
+from .crystal_mpds import MPDSStructureWorkChain
 from .aiida import AiidaStructureWorkChain
 from .properties import CustomPropertiesWorkChain
 
