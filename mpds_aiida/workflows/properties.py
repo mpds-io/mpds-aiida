@@ -9,12 +9,12 @@ from aiida_crystal_dft.utils.kpoints import get_shrink_kpoints_path
 
 
 class CustomPropertiesWorkChain(BasePropertiesWorkChain):
-    BOLTZTRAP_OUTPUT_FILES = ('SEEBECK.DAT', 'SIGMAS.DAT', 'KAPPA.DAT', 'TDF.DAT')
+    BOLTZTRA_OUTPUT_FILES = ('SEEBECK.DAT', 'SIGMAS.DAT', 'KAPPA.DAT', 'TDF.DAT')
 
     @classmethod
     def define(cls, spec):
         super().define(spec)
-        for filename in cls.BOLTZTRAP_OUTPUT_FILES:
+        for filename in cls.BOLTZTRA_OUTPUT_FILES:
             spec.output(filename.lower().replace('.', '_'),
                         valid_type=SinglefileData,
                         required=False,
@@ -72,7 +72,7 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
         if hasattr(last_calc, 'outputs') and 'retrieved' in last_calc.outputs:
             retrieved = last_calc.outputs.retrieved
             available = retrieved.list_object_names()
-            for filename in self.BOLTZTRAP_OUTPUT_FILES:
+            for filename in self.BOLTZTRA_OUTPUT_FILES:
                 if filename in available:
                     with retrieved.open(filename, mode='rb') as f:
                         content = f.read()
