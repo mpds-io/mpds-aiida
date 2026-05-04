@@ -73,6 +73,8 @@ The WorkChain SHALL define the following exit codes:
 - `411`: `ERROR_INVALID_ENGINE` — non-existent code is given
 - `450`: `ERROR_CRYSTAL_FAILED` — the crystal WorkChain did not finish OK (generic failure)
 - `412`: `ERROR_OPTIMIZATION_FAILED` — forwarded from crystal step when optimization specifically fails
+- `460`: `ERROR_NO_RETRIEVED` — the crystal calculation does not contain a retrieved folder
+- `461`: `ERROR_NO_FORT9` — `fort.9` wavefunction not found in the retrieved folder
 - `451`: `ERROR_PROPERTIES_FAILED` — the properties WorkChain did not finish OK
 
 #### Scenario: Exit code from crystal step
@@ -82,6 +84,14 @@ The WorkChain SHALL define the following exit codes:
 #### Scenario: Exit code from properties step
 - **WHEN** the properties WorkChain exits with `is_finished_ok == False`
 - **THEN** the pipeline SHALL return `ERROR_PROPERTIES_FAILED` (451)
+
+#### Scenario: Missing retrieved folder
+- **WHEN** `MPDSPropertiesWorkChain` is provided with a `crystal_calc_uuid` pointing to a calculation that has no `retrieved` output folder
+- **THEN** it SHALL return `ERROR_NO_RETRIEVED` (460)
+
+#### Scenario: Missing wavefunction file
+- **WHEN** `MPDSPropertiesWorkChain` resolves `crystal_calc_uuid` and the `retrieved` folder does not contain `fort.9`
+- **THEN** it SHALL return `ERROR_NO_FORT9` (461)
 
 ### Requirement: Wavefunction hand-off
 The WorkChain SHALL automatically extract the `fort.9` wavefunction file from the **last** (SCF) CalcJob in the crystal step's output and pass it to the `MPDSPropertiesWorkChain` as a `SinglefileData` input, without requiring the user to provide a `crystal_calc_uuid`. The wavefunction from the final SCF step (not the optimization step) is required for Seebeck calculations.
