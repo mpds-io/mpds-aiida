@@ -1,12 +1,12 @@
 from aiida import load_profile
 load_profile()
 from aiida.orm import load_code, Dict
-from mpds_aiida.workflows.properties import MPDSPropertiesWorkChain
+from mpds_aiida.workflows.properties import SeebeckPropertiesWorkChain
 # from aiida.engine import submit
 from aiida.engine import run
 
 
-builder = MPDSPropertiesWorkChain.get_builder()
+builder = SeebeckPropertiesWorkChain.get_builder()
 builder.code = load_code("pproperties@yascheduler")
 builder.crystal_calc_uuid = '1ef3408c-1702-49f0-b1dc-0c5832f2d323'
 params = {

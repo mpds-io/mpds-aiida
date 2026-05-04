@@ -20,6 +20,12 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
                         required=False,
                         help=f"BoltzTraP {filename} output")
 
+    def init_calculation(self):
+        super().init_calculation()
+        if 'metadata' in self.ctx.inputs and 'options' in self.ctx.inputs.metadata:
+            existing = self.ctx.inputs.metadata.options.get('additional_retrieve_list', [])
+            self.ctx.inputs.metadata.options['additional_retrieve_list'] = existing + list(self.BOLTZTRA_OUTPUT_FILES)
+
     def _set_default_parameters(self, parameters):
         """Transform the input parameters by setting defaults for missing values."""
         parameters_dict = parameters.get_dict()
@@ -85,7 +91,7 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
                         self.report(f"Saved BoltzTraP output {filename} as SinglefileData PK={sfd.pk}")
 
 
-class MPDSPropertiesWorkChain(WorkChain):
+class SeebeckPropertiesWorkChain(WorkChain):
 
     @classmethod
     def define(cls, spec):
