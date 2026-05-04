@@ -171,15 +171,22 @@ def properties_run_direct(wf_path, input_dict, work_folder=None, timeout=None):
         return None, work_folder, 'PROPERTIES failed'
 
     if not os.path.exists(os.path.join(work_folder, 'BAND.DAT')) \
-        or not os.path.exists(os.path.join(work_folder, 'DOSS.DAT')) \
-        or not os.path.exists(os.path.join(work_folder, 'fort.25')):
+        or not os.path.exists(os.path.join(work_folder, 'DOSS.DAT')):
         return None, work_folder, 'PROPERTIES missing outputs'
 
+    fort25_path = os.path.join(work_folder, 'fort.25')
+    if not os.path.exists(fort25_path):
+        warnings.warn('PROPERTIES: fort.25 not found, skipping band/DOS parsing')
+        return None, work_folder, 'PROPERTIES: fort.25 not found'
+
     try:
-        result = Fort25(os.path.join(work_folder, 'fort.25')).parse()
-    except AssertionError: # FIXME: how to prevent this
+        result = Fort25(fort25_path).parse()
+    except FileNotFoundError:
+        warnings.warn('PROPERTIES: fort.25 not found, skipping band/DOS parsing')
+        return None, work_folder, 'PROPERTIES: fort.25 not found'
+    except AssertionError:
         return None, work_folder, 'PANIC: PROPERTIES AssertionError'
-    except ParseException: # FIXME: how to prevent this
+    except ParseException:
         return None, work_folder, 'PANIC: PROPERTIES ParseException'
 
     bands = result.get("BAND", None)

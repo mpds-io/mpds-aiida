@@ -3,8 +3,8 @@ codes:
     Pcrystal@yascheduler
 
 options:
-  need_phonons: true
-  need_elastic_constants: true
+  need_phonons: false
+  need_elastic_constants: false
   recursive_update: true
   try_oxi_if_fails: true
   is_magnetic: true
@@ -15,7 +15,7 @@ basis_family: MPDSBSL_NEUTRAL_6TH
 default:
   crystal:
     scf:
-      k_points: [8, 16]
+      k_points: [4, 8]
       dft:
         SPIN: True
         xc: PBE0
@@ -87,53 +87,6 @@ calculations:
           geometry:
             optimise:
               hessian: HESSIDEN
-          scf:
-            numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
-              FMIXING: 90
-            fock_mixing: DIISALLK
-  phonons:
-    metadata:
-      label: 'Phonon frequencies'
-    parameters:
-      crystal:
-        geometry:
-          phonons:
-            TEMPERAT: [35, 5.7125, 1000]
-            SCELPHONO: [[1, 1, 0], [-1, 1, 0], [0, 0, 2]]
-    on_error:
-      300:
-        crystal:
-          scf:
-            numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
-              FMIXING: 90
-            fock_mixing: DIISALLK
-      303:
-        crystal:
-          scf:
-            numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
-              FMIXING: 90
-            fock_mixing: DIISALLK
-  elastic_constants:
-    metadata:
-      label: 'Elastic constants'
-    parameters:
-      crystal:
-        geometry:
-          elastic_constants:
-            type: ELASTCON
-    on_error:
-      300:
-        crystal:
-          scf:
-            numerical:
-              TOLINTEG: [8, 8, 8, 8, 40]
-              FMIXING: 90
-            fock_mixing: DIISALLK
-      303:
-        crystal:
           scf:
             numerical:
               TOLINTEG: [8, 8, 8, 8, 40]

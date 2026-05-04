@@ -5,7 +5,6 @@ codes:
 options:
   need_phonons: true
   need_elastic_constants: true
-  need_properties: false
   recursive_update: true
   try_oxi_if_fails: true
   is_magnetic: true

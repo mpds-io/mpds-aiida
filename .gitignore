@@ -66,3 +66,7 @@ target/
 # Project specific
 run.py
 options.yml
+
+/node_modules
+*.json
+/root/projects/mpds-aiida/.opencode
