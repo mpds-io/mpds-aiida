@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from aiida.engine import ToContext, WorkChain, if_
-from aiida.orm import Dict, StructureData, Str, Int, load_node, load_code
+from aiida.orm import Dict, StructureData, Str, Int, List, load_node, load_code
 from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
 
@@ -153,22 +153,26 @@ class MPDSFleurWorkChain(WorkChain):
 
         phonon_params = self.ctx.config["calculations"]["phonons"]["parameters"]
 
-        # TODO DOUBLECHECK THIS SECTION EXTRA CAREFULLY
+        phonopy_parameters = {
+            key.upper(): value
+            for key, value in phonon_params.get(
+                "phonopy_parameters", {"WRITE_FORCE_CONSTANTS": True}
+            ).items()
+        }
+
         phonon_inputs = {
             "structure": optimized_structure,
+            "supercell_matrix": List(list=phonon_params["supercell_matrix"]),
             "fleur_parameters": Dict(
                 dict={
                     "fleur": self.ctx.codes["fleur"],
                     **self.ctx.config["default"]["scf"],
                 }
             ),
-            "phonopy_parameters": Dict(
-                # TODO add all parameters
-                dict={
-                    "supercell_matrix": phonon_params["supercell_matrix"],
-                    "phonopy": {"code": load_code(self.ctx.codes["phonopy"])},
-                }
-            ),
+            "phonopy": {
+                "code": load_code(self.ctx.codes["phonopy"]),
+                "parameters": Dict(dict=phonopy_parameters),
+            },
         }
 
         # TODO make label style exactly match MPDSStructureWorkChain
