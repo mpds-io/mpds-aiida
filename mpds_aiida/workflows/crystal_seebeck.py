@@ -81,6 +81,7 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
         spec.exit_code(462, 'ERROR_DISK_WRITE',
                        'Properties calculation failed due to disk write error '
                        '(Fortran severe error 38)')
+        spec.exit_code(463, 'ERROR_FORT9_CORRUPTED', 'fort.9 wavefunction file is corrupted or unreadable')
 
     def run_crystal(self):
         has_mpds = 'mpds_query' in self.inputs
@@ -187,6 +188,15 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
             if props.exit_status == 462:
                 self.report("Properties step failed with disk write error (Fortran severe error 38)")
                 return self.exit_codes.ERROR_DISK_WRITE
+            if props.exit_status == 463:
+                self.report("Properties step failed: fort.9 wavefunction corrupted")
+                return self.exit_codes.ERROR_FORT9_CORRUPTED
+            if props.is_excepted:
+                self.report("Properties step excepted")
+                return self.exit_codes.ERROR_PROPERTIES_FAILED
+            if props.is_killed:
+                self.report("Properties step was killed")
+                return self.exit_codes.ERROR_PROPERTIES_FAILED
             self.report(f"Properties step failed with exit status {props.exit_status}")
             return self.exit_codes.ERROR_PROPERTIES_FAILED
 
