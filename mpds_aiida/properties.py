@@ -168,6 +168,12 @@ def properties_run_direct(wf_path, input_dict, work_folder=None, timeout=None):
     print("Done in %1.2f sc" % (time.time() - start_time))
 
     if p.returncode != 0:
+        output_path = os.path.join(work_folder, 'OUTPUT')
+        if os.path.exists(output_path):
+            with open(output_path, 'r', errors='replace') as f:
+                output_content = f.read()
+            if 'severe (38)' in output_content or 'error during write' in output_content:
+                return None, work_folder, 'PROPERTIES disk write error'
         return None, work_folder, 'PROPERTIES failed'
 
     if not os.path.exists(os.path.join(work_folder, 'BAND.DAT')) \

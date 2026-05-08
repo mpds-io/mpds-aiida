@@ -78,6 +78,9 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
         spec.exit_code(411, 'ERROR_INVALID_ENGINE', 'Non-existent code is given')
         spec.exit_code(412, 'ERROR_OPTIMIZATION_FAILED', 'Structure optimization failed')
         spec.exit_code(451, 'ERROR_PROPERTIES_FAILED', 'The properties WorkChain did not finish OK')
+        spec.exit_code(462, 'ERROR_DISK_WRITE',
+                       'Properties calculation failed due to disk write error '
+                       '(Fortran severe error 38)')
 
     def run_crystal(self):
         has_mpds = 'mpds_query' in self.inputs
@@ -181,6 +184,9 @@ class MPDSCrystalSeebeckWorkChain(WorkChain):
     def finalize_properties(self):
         props = self.ctx.properties
         if not props.is_finished_ok:
+            if props.exit_status == 462:
+                self.report("Properties step failed with disk write error (Fortran severe error 38)")
+                return self.exit_codes.ERROR_DISK_WRITE
             self.report(f"Properties step failed with exit status {props.exit_status}")
             return self.exit_codes.ERROR_PROPERTIES_FAILED
 
