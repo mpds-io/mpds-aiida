@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from aiida.engine import ExitCode, ToContext, WorkChain, if_
-from aiida.orm import Dict, StructureData, Str, Int, List, load_node, load_code
+from aiida.orm import Dict, Int, List, Str, StructureData, load_code, load_node
 from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
 
