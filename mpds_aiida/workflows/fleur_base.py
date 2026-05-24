@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from aiida.engine import ToContext, WorkChain, if_
+from aiida.engine import ExitCode, ToContext, WorkChain, if_
 from aiida.orm import Dict, StructureData, Str, Int, List, load_node, load_code
 from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
@@ -52,15 +52,29 @@ class MPDSFleurWorkChain(WorkChain):
             cls.init_inputs,
             cls.run_optimization,
             cls.inspect_optimization,
-            if_(cls.need_phonons)(cls.run_phonons),  # ty:ignore[invalid-argument-type]
+            if_(cls.need_phonons)(  # ty:ignore[invalid-argument-type]
+                cls.run_phonons,
+                cls.inspect_phonons,
+            ),
         )
         spec.exit_code(
             412,
             "ERROR_OPTIMIZATION_FAILED",
             message="Structure optimization failed",
         )
+        spec.exit_code(
+            413,
+            "ERROR_PHONONS_FAILED",
+            message="Phonon calculation failed",
+        )
+        spec.exit_code(
+            414,
+            "ERROR_TRANSPORT_FAILED",
+            message="Transport properties calculation failed",
+        )
         spec.output("optimized_structure", valid_type=StructureData, required=False)
         spec.output("phonon_results", valid_type=Dict, required=False)
+        spec.output("transport_results", valid_type=Dict, required=False)
 
     def init_inputs(self):
         config_path = self.inputs.config_file.value
@@ -153,20 +167,11 @@ class MPDSFleurWorkChain(WorkChain):
 
         opt_workchain = self.ctx.optimization
         if not opt_workchain.is_finished_ok:
-            details = []
-            if opt_workchain.exit_status is not None:
-                details.append(f"exit status {opt_workchain.exit_status}")
-            if opt_workchain.exit_message:
-                details.append(f"exit message: {opt_workchain.exit_message}")
-            exception = getattr(opt_workchain, "exception", None)
-            if exception:
-                details.append(f"exception: {exception}")
-
-            message = "Optimization failed"
-            if details:
-                message = f"{message} ({'; '.join(details)})"
-            self.report(message)
-            return self.exit_codes.ERROR_OPTIMIZATION_FAILED
+            return self._child_exit_code(
+                opt_workchain,
+                "Optimization",
+                self.exit_codes.ERROR_OPTIMIZATION_FAILED,
+            )
 
         try:
             best_pk = opt_workchain.outputs.result_node_pk.value
@@ -212,6 +217,60 @@ class MPDSFleurWorkChain(WorkChain):
 
         future = self.submit(PhonopyFleurWorkChain, **phonon_inputs)  # ty:ignore[invalid-argument-type]
         return ToContext(phonons=future)
+
+    def inspect_phonons(self):
+        phonon_workchain = self.ctx.phonons
+        if not phonon_workchain.is_finished_ok:
+            return self._child_exit_code(
+                phonon_workchain,
+                "Phonon calculation",
+                self.exit_codes.ERROR_PHONONS_FAILED,
+            )
+
+        if "phonon_results" in phonon_workchain.outputs:
+            self.out("phonon_results", phonon_workchain.outputs.phonon_results)
+
+    def inspect_transport(self):
+        transport_workchain = self.ctx.transport
+        if not transport_workchain.is_finished_ok:
+            return self._child_exit_code(
+                transport_workchain,
+                "Transport properties calculation",
+                self.exit_codes.ERROR_TRANSPORT_FAILED,
+            )
+
+        if "output_dos_local_wc_para" in transport_workchain.outputs:
+            self.out(
+                "transport_results",
+                transport_workchain.outputs.output_dos_local_wc_para,
+            )
+
+    def _child_exit_code(self, process, calculation_label, fallback):
+        details = []
+        exit_status = getattr(process, "exit_status", None)
+        exit_message = getattr(process, "exit_message", None)
+
+        if exit_status is not None:
+            details.append(f"exit status {exit_status}")
+        if exit_message:
+            details.append(f"exit message: {exit_message}")
+
+        exception = getattr(process, "exception", None)
+        if exception:
+            details.append(f"exception: {exception}")
+
+        message = f"{calculation_label} failed"
+        if details:
+            message = f"{message} ({'; '.join(details)})"
+        self.report(message)
+
+        if exit_status is not None:
+            return ExitCode(
+                status=exit_status,
+                message=exit_message or fallback.message,
+            )
+
+        return fallback
 
     def get_optimizer(self, optimizer_type: str, calculation_type: str):
         """
