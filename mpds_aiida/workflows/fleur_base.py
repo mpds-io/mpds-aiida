@@ -51,7 +51,13 @@ class MPDSFleurWorkChain(WorkChain):
         spec.outline(
             cls.init_inputs,
             cls.run_optimization,
+            cls.inspect_optimization,
             if_(cls.need_phonons)(cls.run_phonons),  # ty:ignore[invalid-argument-type]
+        )
+        spec.exit_code(
+            412,
+            "ERROR_OPTIMIZATION_FAILED",
+            message="Structure optimization failed",
         )
         spec.output("optimized_structure", valid_type=StructureData, required=False)
         spec.output("phonon_results", valid_type=Dict, required=False)
@@ -140,16 +146,41 @@ class MPDSFleurWorkChain(WorkChain):
         future = self.submit(optimizer_wc, **optimizer_inputs)  # ty:ignore[invalid-argument-type]
         return ToContext(optimization=future)
 
-    def run_phonons(self):
-        opt_workchain = self.ctx.optimization
-        if not opt_workchain.is_finished_ok:
-            self.report("Optimization failed, skipping phonons")
+    def inspect_optimization(self):
+        if not self.ctx.optimize:
+            self.out("optimized_structure", self.ctx.optimized_structure)
             return
 
-        best_pk = opt_workchain.outputs.result_node_pk.value
+        opt_workchain = self.ctx.optimization
+        if not opt_workchain.is_finished_ok:
+            details = []
+            if opt_workchain.exit_status is not None:
+                details.append(f"exit status {opt_workchain.exit_status}")
+            if opt_workchain.exit_message:
+                details.append(f"exit message: {opt_workchain.exit_message}")
+            exception = getattr(opt_workchain, "exception", None)
+            if exception:
+                details.append(f"exception: {exception}")
 
-        best_calc = load_node(best_pk)
-        optimized_structure = best_calc.inputs.structure
+            message = "Optimization failed"
+            if details:
+                message = f"{message} ({'; '.join(details)})"
+            self.report(message)
+            return self.exit_codes.ERROR_OPTIMIZATION_FAILED
+
+        try:
+            best_pk = opt_workchain.outputs.result_node_pk.value
+            best_calc = load_node(best_pk)
+            optimized_structure = best_calc.inputs.structure
+        except Exception as exc:
+            self.report(f"Could not extract optimized structure: {exc}")
+            return self.exit_codes.ERROR_OPTIMIZATION_FAILED
+
+        self.ctx.optimized_structure = optimized_structure
+        self.out("optimized_structure", optimized_structure)
+
+    def run_phonons(self):
+        optimized_structure = self.ctx.optimized_structure
 
         phonon_params = self.ctx.config["calculations"]["phonons"]["parameters"]
 
