@@ -117,20 +117,16 @@ class MPDSFleurWorkChain(WorkChain):
             self.ctx.optimized_structure = self.ctx.structure
             return
 
-        optimizer_wc = self.get_optimizer(
-            self.ctx.optimizer_name, self.ctx.calculator_type
-        )
+        optimizer_wc = self.get_optimizer(self.ctx.optimizer_name, self.ctx.calculator_type)
 
         # Prepearing to start calcs
         calc_params = deepcopy(self.ctx.config["default"][self.ctx.calculator_type])
-        calc_params.update(
-            {
-                "codes": {
-                    "fleur": self.ctx.codes["fleur"],
-                    "inpgen": self.ctx.codes["inpgen"],
-                }
+        calc_params.update({
+            "codes": {
+                "fleur": self.ctx.codes["fleur"],
+                "inpgen": self.ctx.codes["inpgen"],
             }
-        )
+        })
 
         # algorithm_settings from config
         algo_settings = (
@@ -191,9 +187,7 @@ class MPDSFleurWorkChain(WorkChain):
 
         phonopy_parameters = {
             key.upper(): value
-            for key, value in phonon_params.get(
-                "phonopy_parameters", {"WRITE_FORCE_CONSTANTS": True}
-            ).items()
+            for key, value in phonon_params.get("phonopy_parameters", {"WRITE_FORCE_CONSTANTS": True}).items()
         }
 
         phonon_inputs = {
@@ -287,9 +281,5 @@ class MPDSFleurWorkChain(WorkChain):
             optimizer_path = OPTIMIZERS[calculation_type][optimizer_type]
             return WorkflowFactory(optimizer_path)
         except KeyError:
-            self.report(
-                f"Invalid optimizer {optimizer_type} or calculation type {calculation_type}"
-            )
-            return WorkflowFactory(
-                OPTIMIZERS[calculation_type]["BFGS"]
-            )  # fallback to BFGS
+            self.report(f"Invalid optimizer {optimizer_type} or calculation type {calculation_type}")
+            return WorkflowFactory(OPTIMIZERS[calculation_type]["BFGS"])  # fallback to BFGS
