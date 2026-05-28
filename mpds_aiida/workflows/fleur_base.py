@@ -167,6 +167,7 @@ class MPDSFleurWorkChain(WorkChain):
                 opt_workchain,
                 "Optimization",
                 self.exit_codes.ERROR_OPTIMIZATION_FAILED,
+                forward_child_exit_code=False,
             )
 
         try:
@@ -219,6 +220,7 @@ class MPDSFleurWorkChain(WorkChain):
                 phonon_workchain,
                 "Phonon calculation",
                 self.exit_codes.ERROR_PHONONS_FAILED,
+                forward_child_exit_code=False,
             )
 
         if "phonon_results" in phonon_workchain.outputs:
@@ -239,7 +241,14 @@ class MPDSFleurWorkChain(WorkChain):
                 transport_workchain.outputs.output_dos_local_wc_para,
             )
 
-    def _child_exit_code(self, process, calculation_label, fallback):
+    def _child_exit_code(
+        self,
+        process,
+        calculation_label,
+        fallback,
+        *,
+        forward_child_exit_code=True,
+    ):
         details = []
         exit_status = getattr(process, "exit_status", None)
         exit_message = getattr(process, "exit_message", None)
@@ -258,7 +267,7 @@ class MPDSFleurWorkChain(WorkChain):
             message = f"{message} ({'; '.join(details)})"
         self.report(message)
 
-        if exit_status is not None:
+        if forward_child_exit_code and exit_status is not None:
             return ExitCode(
                 status=exit_status,
                 message=exit_message or fallback.message,
