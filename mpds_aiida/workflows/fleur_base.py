@@ -223,23 +223,8 @@ class MPDSFleurWorkChain(WorkChain):
                 forward_child_exit_code=False,
             )
 
-        if "phonon_results" in phonon_workchain.outputs:
-            self.out("phonon_results", phonon_workchain.outputs.phonon_results)
-
-    def inspect_transport(self):
-        transport_workchain = self.ctx.transport
-        if not transport_workchain.is_finished_ok:
-            return self._child_exit_code(
-                transport_workchain,
-                "Transport properties calculation",
-                self.exit_codes.ERROR_TRANSPORT_FAILED,
-            )
-
-        if "output_dos_local_wc_para" in transport_workchain.outputs:
-            self.out(
-                "transport_results",
-                transport_workchain.outputs.output_dos_local_wc_para,
-            )
+        if "output_phonopy" in phonon_workchain.outputs:
+            self.out("output_phonopy", phonon_workchain.outputs.output_phonopy)
 
     def _child_exit_code(
         self,
