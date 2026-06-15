@@ -7,12 +7,12 @@ options:
   optimize_structure: true
   optimizer: "CG"
   calculator: "relax"
-  itmax: 100
+  itmax: 300
 default:
   scf:
     wf_parameters:
-      fleur_runmax: 4
-      itmax_per_run: 60
+      fleur_runmax: 10
+      itmax_per_run: 300
       mode: "energy"
   relax:
     wf_parameters:
@@ -20,8 +20,8 @@ default:
       relax_iter: 8
     scf:
       wf_parameters:
-        fleur_runmax: 3
-        itmax_per_run: 50
+        fleur_runmax: 10
+        itmax_per_run: 300
         mode: "force"
 calculations:
   optimize:
