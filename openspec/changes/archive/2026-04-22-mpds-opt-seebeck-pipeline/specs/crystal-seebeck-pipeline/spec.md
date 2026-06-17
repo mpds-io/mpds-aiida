@@ -76,6 +76,7 @@ The WorkChain SHALL define the following exit codes:
 - `460`: `ERROR_NO_RETRIEVED` — the crystal calculation does not contain a retrieved folder
 - `461`: `ERROR_NO_FORT9` — `fort.9` wavefunction not found in the retrieved folder
 - `451`: `ERROR_PROPERTIES_FAILED` — the properties WorkChain did not finish OK
+- `462`: `ERROR_DISK_WRITE` — properties calculation failed due to a disk write error (Fortran severe error 38)
 
 #### Scenario: Exit code from crystal step
 - **WHEN** the crystal WorkChain exits with a non-zero exit status
@@ -84,6 +85,12 @@ The WorkChain SHALL define the following exit codes:
 #### Scenario: Exit code from properties step
 - **WHEN** the properties WorkChain exits with `is_finished_ok == False`
 - **THEN** the pipeline SHALL return `ERROR_PROPERTIES_FAILED` (451)
+
+#### Scenario: Disk write error during properties calculation
+- **WHEN** the CRYSTAL Properties calculation encounters a disk write error (Fortran runtime error `severe (38)` or `error during write` in its output), even if the process exits with code 0
+- **THEN** the `CustomPropertiesWorkChain` SHALL detect the error in the output file and return `ERROR_DISK_WRITE` (462)
+- **THEN** the `SeebeckPropertiesWorkChain` SHALL propagate `ERROR_DISK_WRITE` (462) upward
+- **THEN** the `MPDSCrystalSeebeckWorkChain` SHALL propagate `ERROR_DISK_WRITE` (462) upward
 
 #### Scenario: Missing retrieved folder
 - **WHEN** `MPDSPropertiesWorkChain` is provided with a `crystal_calc_uuid` pointing to a calculation that has no `retrieved` output folder

@@ -19,9 +19,18 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
                         valid_type=SinglefileData,
                         required=False,
                         help=f"BoltzTraP {filename} output")
+        spec.exit_code(462, 'ERROR_DISK_WRITE',
+                       'Properties calculation failed due to disk write error '
+                       '(Fortran severe error 38)')
+        spec.exit_code(463, 'ERROR_FORT9_CORRUPTED', 'fort.9 wavefunction file is corrupted or unreadable')
+        spec.exit_code(451, 'ERROR_PROPERTIES_FAILED', 'Properties WorkChain did not finish OK')
 
     def init_calculation(self):
-        super().init_calculation()
+        try:
+            super().init_calculation()
+        except (FileNotFoundError, EOFError) as exc:
+            self.report(f"Failed to read fort.9 wavefunction: {exc}")
+            return self.exit_codes.ERROR_FORT9_CORRUPTED
         if 'metadata' in self.ctx.inputs and 'options' in self.ctx.inputs.metadata:
             existing = self.ctx.inputs.metadata.options.get('additional_retrieve_list', [])
             self.ctx.inputs.metadata.options['additional_retrieve_list'] = existing + list(self.BOLTZTRA_OUTPUT_FILES)
@@ -73,6 +82,19 @@ class CustomPropertiesWorkChain(BasePropertiesWorkChain):
         return Dict(dict=parameters_dict)
 
     def retrieve_results(self):
+        last_calc = self.ctx.calculations[-1]
+
+        if hasattr(last_calc, 'outputs') and 'retrieved' in last_calc.outputs:
+            retrieved = last_calc.outputs.retrieved
+            available = retrieved.list_object_names()
+            output_filename = last_calc.get_option('output_filename') or 'properties.out'
+            if output_filename in available:
+                output_content = retrieved.get_object_content(output_filename)
+                if 'severe (38)' in output_content or 'error during write' in output_content:
+                    self.report("Properties calculation contains disk write error "
+                                "(Fortran severe error 38)")
+                    return self.exit_codes.ERROR_DISK_WRITE
+
         super().retrieve_results()
         last_calc = self.ctx.calculations[-1]
         if hasattr(last_calc, 'outputs') and 'retrieved' in last_calc.outputs:
@@ -104,6 +126,11 @@ class SeebeckPropertiesWorkChain(WorkChain):
         spec.expose_outputs(CustomPropertiesWorkChain)
         spec.exit_code(460, 'ERROR_NO_RETRIEVED', 'Calculation does not contain retrieved folder')
         spec.exit_code(461, 'ERROR_NO_FORT9', 'fort.9 not found in retrieved folder')
+        spec.exit_code(463, 'ERROR_FORT9_CORRUPTED', 'fort.9 wavefunction file is corrupted or unreadable')
+        spec.exit_code(451, 'ERROR_PROPERTIES_FAILED', 'Properties WorkChain did not finish OK')
+        spec.exit_code(462, 'ERROR_DISK_WRITE',
+                       'Properties calculation failed due to disk write error '
+                       '(Fortran severe error 38)')
 
     def prepare_wavefunction(self):
         calc = load_node(self.inputs.crystal_calc_uuid.value)
@@ -154,6 +181,14 @@ class SeebeckPropertiesWorkChain(WorkChain):
     def finalize(self):
         calc = self.ctx.properties
         if not calc.is_finished_ok:
+            if calc.exit_status == 462:
+                return self.exit_codes.ERROR_DISK_WRITE
+            if calc.is_excepted:
+                self.report("Properties WorkChain excepted")
+                return self.exit_codes.ERROR_PROPERTIES_FAILED
+            if calc.is_killed:
+                self.report("Properties WorkChain was killed")
+                return self.exit_codes.ERROR_PROPERTIES_FAILED
             self.report(f"Calculation of properties finished with error {calc.exit_status}")
-            return
+            return self.exit_codes.ERROR_PROPERTIES_FAILED
         self.out_many(self.exposed_outputs(calc, CustomPropertiesWorkChain))
