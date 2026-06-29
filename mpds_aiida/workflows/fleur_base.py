@@ -73,7 +73,7 @@ class MPDSFleurWorkChain(WorkChain):
             message="Transport properties calculation failed",
         )
         spec.output("optimized_structure", valid_type=StructureData, required=False)
-        spec.output("phonon_results", valid_type=Dict, required=False)
+        spec.output("output_phonopy", valid_type=Dict, required=False)
         spec.output("transport_results", valid_type=Dict, required=False)
 
     def init_inputs(self):
@@ -109,9 +109,9 @@ class MPDSFleurWorkChain(WorkChain):
         self.ctx.initial_parameters = params
 
     def need_phonons(self):
-        return self.ctx.need_phonons and self.ctx.optimize
+        return self.ctx.need_phonons
 
-    # TODO Сделать так чтобы параметры можно было перезаписывать из внешнего инпута
+    # TODO Make it so that parameters can be overwritten from an external input
     def run_optimization(self):
         if not self.ctx.optimize:
             self.ctx.optimized_structure = self.ctx.structure
