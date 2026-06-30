@@ -1,7 +1,7 @@
 from copy import deepcopy
 
-from aiida.engine import ToContext, WorkChain, if_
-from aiida.orm import Dict, StructureData, Str, Int, List, load_node, load_code
+from aiida.engine import ExitCode, ToContext, WorkChain, if_
+from aiida.orm import Dict, Int, List, Str, StructureData, load_code, load_node
 from aiida.plugins import WorkflowFactory
 from aiida_crystal_dft.utils import recursive_update
 
@@ -51,10 +51,30 @@ class MPDSFleurWorkChain(WorkChain):
         spec.outline(
             cls.init_inputs,
             cls.run_optimization,
-            if_(cls.need_phonons)(cls.run_phonons),  # ty:ignore[invalid-argument-type]
+            cls.inspect_optimization,
+            if_(cls.need_phonons)(  # ty:ignore[invalid-argument-type]
+                cls.run_phonons,
+                cls.inspect_phonons,
+            ),
+        )
+        spec.exit_code(
+            412,
+            "ERROR_OPTIMIZATION_FAILED",
+            message="Structure optimization failed",
+        )
+        spec.exit_code(
+            413,
+            "ERROR_PHONONS_FAILED",
+            message="Phonon calculation failed",
+        )
+        spec.exit_code(
+            414,
+            "ERROR_TRANSPORT_FAILED",
+            message="Transport properties calculation failed",
         )
         spec.output("optimized_structure", valid_type=StructureData, required=False)
-        spec.output("phonon_results", valid_type=Dict, required=False)
+        spec.output("output_phonopy", valid_type=Dict, required=False)
+        spec.output("transport_results", valid_type=Dict, required=False)
 
     def init_inputs(self):
         config_path = self.inputs.config_file.value
@@ -89,28 +109,24 @@ class MPDSFleurWorkChain(WorkChain):
         self.ctx.initial_parameters = params
 
     def need_phonons(self):
-        return self.ctx.need_phonons and self.ctx.optimize
+        return self.ctx.need_phonons
 
-    # TODO Сделать так чтобы параметры можно было перезаписывать из внешнего инпута
+    # TODO Make it so that parameters can be overwritten from an external input
     def run_optimization(self):
         if not self.ctx.optimize:
             self.ctx.optimized_structure = self.ctx.structure
             return
 
-        optimizer_wc = self.get_optimizer(
-            self.ctx.optimizer_name, self.ctx.calculator_type
-        )
+        optimizer_wc = self.get_optimizer(self.ctx.optimizer_name, self.ctx.calculator_type)
 
         # Prepearing to start calcs
         calc_params = deepcopy(self.ctx.config["default"][self.ctx.calculator_type])
-        calc_params.update(
-            {
-                "codes": {
-                    "fleur": self.ctx.codes["fleur"],
-                    "inpgen": self.ctx.codes["inpgen"],
-                }
+        calc_params.update({
+            "codes": {
+                "fleur": self.ctx.codes["fleur"],
+                "inpgen": self.ctx.codes["inpgen"],
             }
-        )
+        })
 
         # algorithm_settings from config
         algo_settings = (
@@ -140,24 +156,39 @@ class MPDSFleurWorkChain(WorkChain):
         future = self.submit(optimizer_wc, **optimizer_inputs)  # ty:ignore[invalid-argument-type]
         return ToContext(optimization=future)
 
-    def run_phonons(self):
-        opt_workchain = self.ctx.optimization
-        if not opt_workchain.is_finished_ok:
-            self.report("Optimization failed, skipping phonons")
+    def inspect_optimization(self):
+        if not self.ctx.optimize:
+            self.out("optimized_structure", self.ctx.optimized_structure)
             return
 
-        best_pk = opt_workchain.outputs.result_node_pk.value
+        opt_workchain = self.ctx.optimization
+        if not opt_workchain.is_finished_ok:
+            return self._child_exit_code(
+                opt_workchain,
+                "Optimization",
+                self.exit_codes.ERROR_OPTIMIZATION_FAILED,
+                forward_child_exit_code=False,
+            )
 
-        best_calc = load_node(best_pk)
-        optimized_structure = best_calc.inputs.structure
+        try:
+            best_pk = opt_workchain.outputs.result_node_pk.value
+            best_calc = load_node(best_pk)
+            optimized_structure = best_calc.inputs.structure
+        except Exception as exc:
+            self.report(f"Could not extract optimized structure: {exc}")
+            return self.exit_codes.ERROR_OPTIMIZATION_FAILED
+
+        self.ctx.optimized_structure = optimized_structure
+        self.out("optimized_structure", optimized_structure)
+
+    def run_phonons(self):
+        optimized_structure = self.ctx.optimized_structure
 
         phonon_params = self.ctx.config["calculations"]["phonons"]["parameters"]
 
         phonopy_parameters = {
             key.upper(): value
-            for key, value in phonon_params.get(
-                "phonopy_parameters", {"WRITE_FORCE_CONSTANTS": True}
-            ).items()
+            for key, value in phonon_params.get("phonopy_parameters", {"WRITE_FORCE_CONSTANTS": True}).items()
         }
 
         phonon_inputs = {
@@ -182,6 +213,53 @@ class MPDSFleurWorkChain(WorkChain):
         future = self.submit(PhonopyFleurWorkChain, **phonon_inputs)  # ty:ignore[invalid-argument-type]
         return ToContext(phonons=future)
 
+    def inspect_phonons(self):
+        phonon_workchain = self.ctx.phonons
+        if not phonon_workchain.is_finished_ok:
+            return self._child_exit_code(
+                phonon_workchain,
+                "Phonon calculation",
+                self.exit_codes.ERROR_PHONONS_FAILED,
+                forward_child_exit_code=False,
+            )
+
+        if "output_phonopy" in phonon_workchain.outputs:
+            self.out("output_phonopy", phonon_workchain.outputs.output_phonopy)
+
+    def _child_exit_code(
+        self,
+        process,
+        calculation_label,
+        fallback,
+        *,
+        forward_child_exit_code=True,
+    ):
+        details = []
+        exit_status = getattr(process, "exit_status", None)
+        exit_message = getattr(process, "exit_message", None)
+
+        if exit_status is not None:
+            details.append(f"exit status {exit_status}")
+        if exit_message:
+            details.append(f"exit message: {exit_message}")
+
+        exception = getattr(process, "exception", None)
+        if exception:
+            details.append(f"exception: {exception}")
+
+        message = f"{calculation_label} failed"
+        if details:
+            message = f"{message} ({'; '.join(details)})"
+        self.report(message)
+
+        if forward_child_exit_code and exit_status is not None:
+            return ExitCode(
+                status=exit_status,
+                message=exit_message or fallback.message,
+            )
+
+        return fallback
+
     def get_optimizer(self, optimizer_type: str, calculation_type: str):
         """
         Get optimizer class with proper error handling.
@@ -197,9 +275,5 @@ class MPDSFleurWorkChain(WorkChain):
             optimizer_path = OPTIMIZERS[calculation_type][optimizer_type]
             return WorkflowFactory(optimizer_path)
         except KeyError:
-            self.report(
-                f"Invalid optimizer {optimizer_type} or calculation type {calculation_type}"
-            )
-            return WorkflowFactory(
-                OPTIMIZERS[calculation_type]["BFGS"]
-            )  # fallback to BFGS
+            self.report(f"Invalid optimizer {optimizer_type} or calculation type {calculation_type}")
+            return WorkflowFactory(OPTIMIZERS[calculation_type]["BFGS"])  # fallback to BFGS
