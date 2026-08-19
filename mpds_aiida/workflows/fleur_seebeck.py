@@ -35,10 +35,10 @@ MIN_MESH = 6
 MAX_MESH = 84
 
 DEFAULT_SEEBECK = {
-    # just arbitrary small temperature since this code does not
-    # take into account effects of tepmerature expension properly
+    # just an arbitrary small temperature since this code does not
+    # take into account effects of temperature expansion properly
     "temperature": 5.0,
-    # hole or electrons
+    # holes or electrons
     "carrier_type": "hole",
     "doping_cm3": 5e18,
     "fermi_energy_ev": 0.0,
