@@ -27,7 +27,7 @@ default:
         TOLDEE: 9
         BIPOSIZE: 256000000
         EXCHSIZE: 256000000
-        MAXCYCLE: 150
+        MAXCYCLE: 125
       post_scf: ['PPAN']
 
 calculations:
