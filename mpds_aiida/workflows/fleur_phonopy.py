@@ -235,8 +235,8 @@ class FleurForcesWorkChain(WorkChain):
             if "wf_parameters" in self.inputs
             else {}
         )
-        retry_wf_parameters["itmax_per_run"] = (
-            retry_wf_parameters.get("itmax_per_run", 10) * 3
+        retry_wf_parameters["itmax_per_run"] = int(
+            retry_wf_parameters.get("itmax_per_run", 300) * 1.5
         )
         retry_wf_parameters["fleur_runmax"] = 1
         inputs["wf_parameters"] = Dict(dict=retry_wf_parameters)
