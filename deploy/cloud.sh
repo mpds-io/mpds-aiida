@@ -3,9 +3,9 @@ set -euo pipefail
 
 apt-get -y update && apt-get -y upgrade && apt-get install -y build-essential swig p7zip-full pkg-config libopenblas-dev libblas-dev liblapack-dev cmake libopenblas-dev libxml2-dev build-essential gfortran git libarpack2 libarpack2-dev libxc-dev
 
-wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.1.tar.gz
-tar xvf openmpi-4.1.1.tar.gz
-cd openmpi-4.1.1
+wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.8.tar.gz
+tar xvf openmpi-4.1.8.tar.gz
+cd openmpi-4.1.8
 ./configure
 make -j8
 make install
