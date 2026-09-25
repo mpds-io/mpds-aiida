@@ -7,6 +7,7 @@ from aiida.orm import (
     Dict,
     Int,
     KpointsData,
+    List,
     RemoteData,
     Str,
     StructureData,
@@ -500,6 +501,15 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             help="If True, prints info from fleur inp.xml and stops without running calculations.",
         )
 
+        spec.input(
+            "kpoints_mesh",
+            valid_type=List,
+            required=False,
+            help="Override inpgen k-point mesh, e.g. [2,2,3]. "
+            "When set, replaces the inpgen-generated k-points in inp.xml "
+            "with an explicit Monkhorst-Pack grid of the given dimensions.",
+        )
+
         spec.exit_code(
             402,
             "FORCES_DATA_NOT_FOUND",
@@ -554,6 +564,37 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
             else:
                 xml_input = fleur_setup.get_input_setup(label="Fe_fcc")
                 fleur_inp_data = convert_xml_to_FleurInpData(xml_input)
+
+                # Override k-point mesh if kpoints_mesh is specified
+                if "kpoints_mesh" in self.inputs and self.inputs.kpoints_mesh:
+                    mesh = self.inputs.kpoints_mesh.get_list()
+                    nx, ny, nz = int(mesh[0]), int(mesh[1]), int(mesh[2])
+                    self.report(
+                        f"Overriding k-point mesh to {nx}x{ny}x{nz} "
+                        f"({nx * ny * nz} unreduced points)"
+                    )
+                    raw_points = [
+                        [i / nx, j / ny, k / nz]
+                        for i in range(nx)
+                        for j in range(ny)
+                        for k in range(nz)
+                    ]
+                    weights = [1.0 / len(raw_points)] * len(raw_points)
+
+                    kpoints = KpointsData()
+                    kpoints.set_cell_from_structure(fleur_inp_data.get_structuredata())
+                    kpoints.set_kpoints(raw_points, cartesian=False, weights=weights)
+                    kpoints.store()
+
+                    mod = FleurinpModifier(fleur_inp_data)
+                    mod.set_kpointsdata(
+                        kpoints,
+                        name="custom_mesh",
+                        switch=True,
+                        kpoint_type="mesh",
+                    )
+                    fleur_inp_data = mod.freeze()
+
                 inputs["fleurinp"] = fleur_inp_data
 
             if self.inputs.get("test_magmoms_run", Bool(False)).value:
