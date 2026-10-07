@@ -114,24 +114,31 @@ class FleurForcesWorkChain(WorkChain):
     def load_codes(self):
         """
         Load the Fleur and inpgen codes from the inputs.
+
+        Stores loaded Code objects in self.ctx so they survive daemon
+        restarts (self.inputs is restored from the original stored inputs,
+        losing any in-memory modifications made by this method).
         """
         if isinstance(self.inputs.fleur, Str):
-            self.inputs.fleur = load_code(self.inputs.fleur.value)
-        if isinstance(self.inputs.fleur, str):
-            self.inputs.fleur = load_code(self.inputs.fleur)
+            self.ctx.fleur = load_code(self.inputs.fleur.value)
+        elif isinstance(self.inputs.fleur, str):
+            self.ctx.fleur = load_code(self.inputs.fleur)
+        else:
+            self.ctx.fleur = self.inputs.fleur
         if "inpgen" in self.inputs and isinstance(self.inputs.inpgen, Str):
-            self.inputs.inpgen = load_code(self.inputs.inpgen.value)
-        if "inpgen" in self.inputs and isinstance(self.inputs.inpgen, str):
-            self.inputs.inpgen = load_code(self.inputs.inpgen)
+            self.ctx.inpgen = load_code(self.inputs.inpgen.value)
+        elif "inpgen" in self.inputs and isinstance(self.inputs.inpgen, str):
+            self.ctx.inpgen = load_code(self.inputs.inpgen)
+        elif "inpgen" in self.inputs:
+            self.ctx.inpgen = self.inputs.inpgen
 
     def run_scf(self):
         """
         Run FleurSCFWorkChain.
         """
         # Build inputs dict, only including present keys
-        inputs = {"fleur": self.inputs.fleur}
+        inputs = {"fleur": self.ctx.fleur}
         for key in (
-            "inpgen",
             "calc_parameters",
             "wf_parameters",
             "options",
@@ -141,6 +148,8 @@ class FleurForcesWorkChain(WorkChain):
         ):
             if key in self.inputs:
                 inputs[key] = self.inputs[key]
+        if "inpgen" in self.ctx:
+            inputs["inpgen"] = self.ctx.inpgen
         if "structure" in self.inputs and "fleurinp" not in self.inputs:
             inputs["structure"] = self.inputs.structure
 
@@ -224,7 +233,7 @@ class FleurForcesWorkChain(WorkChain):
         # iterations within a single continuous FLEUR run reliably
         # progress the charge distance.
         inputs = {
-            "fleur": self.inputs.fleur,
+            "fleur": self.ctx.fleur,
             "fleurinp": new_fleurinp,
             "remote_data": remote_folder,
         }
@@ -274,7 +283,7 @@ class FleurForcesWorkChain(WorkChain):
         Run a Fleur calculation with modified input and previous remote files.
         """
         try:
-            code = self.inputs.fleur
+            code = self.ctx.fleur
             remote = self.ctx.remote_folder
             fleurinp = self.ctx.forces_fleurinp
             options = (
