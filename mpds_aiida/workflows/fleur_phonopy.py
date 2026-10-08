@@ -188,6 +188,25 @@ class FleurForcesWorkChain(WorkChain):
         self.ctx.scf_kmesh_retried = True
 
         failed_wc = self.ctx.scf_wc
+
+        # A denser k-mesh retry only makes sense if FLEUR actually ran at
+        # least once (so there is a fleurinp/charge density to densify and
+        # continue from). If the SCF failed before that -- e.g. exit 390
+        # ERROR_NOT_OPTIMAL_RESOURCES from FleurBaseWorkChain.check_kpts,
+        # or exit 300/402 from a job that never produced any output --
+        # 'fleurinp' and 'last_calc' were never set as outputs, and trying
+        # to read them crashes this step (NotExistentAttributeError)
+        # instead of cleanly failing. Skip the retry in that case; the
+        # fix for those failures is at the resources/infra level, not the
+        # k-mesh.
+        if "fleurinp" not in failed_wc.outputs or "last_calc" not in failed_wc.outputs:
+            self.report(
+                f"SCF workchain <{failed_wc.pk}> failed before FLEUR produced "
+                f"any output (exit_status={failed_wc.exit_status}); no charge "
+                f"density to retry from, skipping the denser-k-mesh retry."
+            )
+            return
+
         self.report(
             f"SCF workchain <{failed_wc.pk}> did not converge "
             f"(exit_status={failed_wc.exit_status}); retrying once with a "
