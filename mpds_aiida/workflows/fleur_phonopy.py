@@ -30,29 +30,86 @@ from ase.units import Bohr, Hartree
 HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM = Hartree / Bohr  # 27.211386245988 / 0.529177210903
 
 
-def _get_kpoint_mesh_dims(xml_content: str) -> tuple[int, int, int]:
-    """Read nx/ny/nz off the active (type="mesh") kPointList in an inp.xml
-    string. These are metadata only -- see retry_scf_with_denser_kmesh for
-    why they can't just be edited in place to change the actual mesh.
+def _localname(tag) -> str:
+    return tag.split("}")[-1] if isinstance(tag, str) else ""
 
-    Raises ValueError if the kPointList tag or its nx/ny/nz attributes are
-    not found: a silent fallback to (1, 1, 1) would produce a Gamma-only
-    mesh without any warning, which has no physical justification.
+
+def _get_kpoint_mesh_dims(xml_content: str) -> tuple[int, int, int]:
+    """Read the effective nx/ny/nz grid of the *active* kPointList in an
+    inp.xml string (the one named by <kPointListSelection listName="...">,
+    falling back to the first type="mesh" list if there is no selection or
+    no match). These are metadata only -- see retry_scf_with_denser_kmesh
+    for why they can't just be edited in place to change the actual mesh.
+
+    A list written by FleurinpModifier.set_kpointsdata (as both this
+    workchain's initial mesh setup and its own denser-kmesh retry do) has
+    no nx/ny/nz attributes at all -- it's an explicit <kPoint> list, not a
+    FLEUR-native generated grid. In that case nx/ny/nz are recovered from
+    the number of distinct coordinate values along each reciprocal axis,
+    which is exact for the regular (unreduced) Monkhorst-Pack-style grids
+    this workchain generates.
+
+    Raises ValueError if no mesh-type kPointList is found at all, or if
+    dimensions can't be determined: a silent fallback to (1, 1, 1) would
+    produce a Gamma-only mesh without any warning, which has no physical
+    justification.
     """
     root = etree.fromstring(xml_content.encode("utf-8"))
+
+    selected_name = None
     for e in root.iter():
-        if not isinstance(e.tag, str):
+        if _localname(e.tag) == "kPointListSelection":
+            selected_name = e.get("listName")
+            break
+
+    mesh_lists = [
+        e
+        for e in root.iter()
+        if _localname(e.tag) == "kPointList" and e.get("type") == "mesh"
+    ]
+    if not mesh_lists:
+        raise ValueError("kPointList type='mesh' not found in inp.xml")
+
+    active = None
+    if selected_name is not None:
+        for e in mesh_lists:
+            if e.get("name") == selected_name:
+                active = e
+                break
+    if active is None:
+        active = mesh_lists[0]
+
+    nx, ny, nz = active.get("nx"), active.get("ny"), active.get("nz")
+    if nx is not None and ny is not None and nz is not None:
+        return int(float(nx)), int(float(ny)), int(float(nz))
+
+    # Explicit <kPoint> list (no nx/ny/nz): recover the grid from the
+    # number of distinct fractional coordinates along each axis.
+    coords = []
+    for kp in active:
+        if _localname(kp.tag) != "kPoint":
             continue
-        if e.tag.split("}")[-1] == "kPointList" and e.get("type") == "mesh":
-            nx = e.get("nx")
-            ny = e.get("ny")
-            nz = e.get("nz")
-            if nx is None or ny is None or nz is None:
-                raise ValueError(
-                    "kPointList type='mesh' found but missing nx/ny/nz attributes"
-                )
-            return int(float(nx)), int(float(ny)), int(float(nz))
-    raise ValueError("kPointList type='mesh' not found in inp.xml")
+        parts = kp.text.split()
+        if len(parts) != 3:
+            raise ValueError(
+                f"kPoint entry has {len(parts)} coordinates, expected 3"
+            )
+        coords.append(tuple(round(float(p), 6) for p in parts))
+    if not coords:
+        raise ValueError(
+            "Active kPointList has no nx/ny/nz attributes and no <kPoint> "
+            "children to recover the grid dimensions from"
+        )
+    nx = len({c[0] for c in coords})
+    ny = len({c[1] for c in coords})
+    nz = len({c[2] for c in coords})
+    if nx * ny * nz != len(coords):
+        raise ValueError(
+            f"Could not recover a regular grid from {len(coords)} explicit "
+            f"k-points (distinct-axis-values product {nx}x{ny}x{nz}="
+            f"{nx * ny * nz} does not match)"
+        )
+    return nx, ny, nz
 
 
 class FleurForcesWorkChain(WorkChain):
