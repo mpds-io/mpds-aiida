@@ -241,7 +241,7 @@ class FleurDOSLocalWorkChain(WorkChain):
             self.ctx.phase = self.inputs.phase.value
         else:
             self.report("WARNING: No phase label in inputs")
-            self.ctx.phase = "UNKOWN PHASE"
+            self.ctx.phase = "UNDEFINED PHASE"
 
         self.ctx.label = f"{self.ctx.phase} : Seebeck coefficient calculation from DOS (Fleur)"
         self.node.label = self.ctx.label
