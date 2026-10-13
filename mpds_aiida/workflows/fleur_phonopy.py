@@ -27,13 +27,11 @@ from aiida_reoptimize.structure.magmoms_utils import (
 )
 from ase.units import Bohr, Hartree
 
-# Production-safety gates for retry_scf_with_denser_kmesh (see the
-# method docstring for the 2026-10-13 incident class):
-# supercell-scale cells must not get their unreduced k-mesh densified
+# Production-safety gates for retry_scf_with_denser_kmesh:
+# supercell-scale cells must not get their irreducible k-mesh densified
 # (zone folding makes it physically pointless; FLEUR's per-rank k-pool
-# memory scales with unreduced k-count x cell basis and froze a 36 GB
-# node / OOM-crashed a 128 GB node), and no retry may build an
-# unbounded k-point pool.
+# memory scales with unreduced k-count x cell basis and froze a 36 GB RAM
+# node / OOM-crashed a 128 GB node), and no retry may build an unbounded k-point pool.
 MAX_DENSER_RETRY_ATOMS = 20
 MAX_DENSER_RETRY_KPOINTS = 64
 
@@ -291,10 +289,6 @@ class FleurForcesWorkChain(WorkChain):
         # sampling does not grow with cell size, and the unreduced mesh
         # this retry builds scales FLEUR's per-rank k-pool memory with
         # (unreduced k-count) x (cell basis), superlinearly.
-        # Production incident (2026-10-13): an 80-atom supercell's retry
-        # built a 252-point unreduced mesh; FLEUR's per-rank VmPeak ran
-        # to tens of GiB and froze a 36 GB node outright (the same retry
-        # class also OOM-crashed runs on a 128 GB node).
         try:
             n_sites = len(old_fleurinp.get_structuredata().sites)
         except Exception:
@@ -303,7 +297,7 @@ class FleurForcesWorkChain(WorkChain):
             self.report(
                 f"SCF cell has {n_sites} atoms (> {MAX_DENSER_RETRY_ATOMS}): "
                 f"supercell-scale cell; densifying the k-mesh is physically "
-                f"inappropriate (zone folding) and its unreduced k-point "
+                f"inappropriate (zone folding) and its irreducible k-point "
                 f"pool is a memory hazard. Skipping the denser-k-mesh retry."
             )
             return
@@ -322,7 +316,7 @@ class FleurForcesWorkChain(WorkChain):
         # small-cell retries.
         if nx * ny * nz > MAX_DENSER_RETRY_KPOINTS:
             self.report(
-                f"Denser mesh would hold {nx * ny * nz} unreduced k-points "
+                f"Denser mesh would hold {nx * ny * nz} irreducible k-points "
                 f"(> {MAX_DENSER_RETRY_KPOINTS}); memory-prohibitively "
                 f"large. Skipping the denser-k-mesh retry."
             )
