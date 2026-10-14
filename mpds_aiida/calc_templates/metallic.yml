@@ -45,6 +45,7 @@ calculations:
             hessian: HESSIDEN
             convergence:
               TOLDEE: 9
+              TOLDEG: 0.000075
     on_error:
       300:
         crystal:
