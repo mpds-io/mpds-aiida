@@ -10,19 +10,47 @@ options:
   itmax: 300
 default:
   scf:
+    calc_parameters:
+      comp:
+        kmax: 3.0
+      kpt:
+        div1: 4
+        div2: 4
+        div3: 4
     wf_parameters:
       fleur_runmax: 10
       itmax_per_run: 300
+      density_converged: 1.0e-4
+      energy_converged: 0.01
       mode: "energy"
+      inpxml_changes:
+        - - "set_inpchanges"
+          - changes:
+              imix: "straight"
+              alpha: 0.05
   relax:
     wf_parameters:
-      force_criterion: 0.01
-      relax_iter: 8
+      force_criterion: 0.05
+      relax_iter: 4
     scf:
+      calc_parameters:
+        comp:
+          kmax: 3.0
+        kpt:
+          div1: 6
+          div2: 6
+          div3: 6
       wf_parameters:
         fleur_runmax: 10
-        itmax_per_run: 300
+        itmax_per_run: 100
+        density_converged: 1.0e-4
+        force_converged: 0.05
         mode: "force"
+        inpxml_changes:
+          - - "set_inpchanges"
+            - changes:
+                imix: "straight"
+                alpha: 0.05
 calculations:
   optimize:
     parameters:
