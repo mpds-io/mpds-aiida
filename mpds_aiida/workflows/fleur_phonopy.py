@@ -27,6 +27,16 @@ from aiida_reoptimize.structure.magmoms_utils import (
 )
 from ase.units import Bohr, Hartree
 
+# Production-safety gates for retry_scf_with_denser_kmesh (see the
+# method docstring for the 2026-10-13 incident class):
+# supercell-scale cells must not get their unreduced k-mesh densified
+# (zone folding makes it physically pointless; FLEUR's per-rank k-pool
+# memory scales with unreduced k-count x cell basis and froze a 36 GB
+# node / OOM-crashed a 128 GB node), and no retry may build an
+# unbounded k-point pool.
+MAX_DENSER_RETRY_ATOMS = 20
+MAX_DENSER_RETRY_KPOINTS = 64
+
 HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM = Hartree / Bohr  # 27.211386245988 / 0.529177210903
 
 
@@ -210,6 +220,73 @@ class FleurForcesWorkChain(WorkChain):
         if "structure" in self.inputs and "fleurinp" not in self.inputs:
             inputs["structure"] = self.inputs.structure
 
+        # Pristine supercell k-mesh sanity (same reasoning as the
+        # displaced-cell scaling in run_forces): the pristine supercell
+        # SCF runs on the supercell structure, where inpgen's heuristics
+        # pick a primitive-class mesh. The symmetry reduction keeps
+        # more points than the displaced case but the k-count can still
+        # be prime and 5-10x oversampled (production: a 40-atom
+        # pristine supercell got a 29-point prime mesh -> the k-adaptive
+        # spawn collapsed to np=1 -> tens of GiB on one rank -> OOM).
+        if "structure" in inputs and "fleurinp" not in inputs:
+            try:
+                from aiida_fleur.data.fleurinp import FleurinpData  # noqa
+            except ImportError:
+                FleurinpData = None
+            try:
+                sm = self.inputs.supercell_matrix.get_list()
+                fx = abs(sm[0][0]) or 1
+                fy = abs(sm[1][1]) or 1
+                fz = abs(sm[2][2]) or 1
+                if (fx, fy, fz) != (1, 1, 1):
+                    # generate inpgen's input for the supercell to read its
+                    # mesh choice, then scale it down the same way
+                    structure = inputs["structure"]
+                    atoms = structure.get_ase()
+                    fleur_setup = Fleur_setup(atoms)
+                    err = fleur_setup.validate()
+                    if not err:
+                        xml_input = fleur_setup.get_input_setup(label="pristine")
+                        fleur_inp_data = convert_xml_to_FleurInpData(xml_input)
+                        bx, by, bz = _get_kpoint_mesh_dims(
+                            fleur_inp_data.get_content("inp.xml")
+                        )
+                        nx = max(1, -(-bx // fx))
+                        ny = max(1, -(-by // fy))
+                        nz = max(1, -(-bz // fz))
+                        if (nx, ny, nz) != (bx, by, bz):
+                            self.report(
+                                f"Pristine supercell k-mesh scaled by "
+                                f"({fx},{fy},{fz}): inpgen {bx}x{by}x{bz} -> "
+                                f"{nx}x{ny}x{nz} ({nx * ny * nz} unreduced "
+                                f"points)"
+                            )
+                            raw_points = [
+                                [i / nx, j / ny, k / nz]
+                                for i in range(nx)
+                                for j in range(ny)
+                                for k in range(nz)
+                            ]
+                            weights = [1.0 / len(raw_points)] * len(raw_points)
+                            kpoints = KpointsData()
+                            kpoints.set_cell_from_structure(structure)
+                            kpoints.set_kpoints(
+                                raw_points, cartesian=False, weights=weights
+                            )
+                            kpoints.store()
+                            mod = FleurinpModifier(fleur_inp_data)
+                            mod.set_kpointsdata(
+                                kpoints,
+                                name="pristine_scaled_mesh",
+                                switch=True,
+                                kpoint_type="mesh",
+                            )
+                            inputs["fleurinp"] = mod.freeze()
+                            # keep structure out: fleurinp takes precedence
+                            inputs.pop("structure", None)
+            except Exception as err:
+                self.report(f"pristine k-mesh scaling skipped ({err})")
+
         future = self.submit(FleurScfWorkChain, **inputs)
         return ToContext(scf_wc=future)
 
@@ -274,6 +351,30 @@ class FleurForcesWorkChain(WorkChain):
         old_fleurinp = failed_wc.outputs.fleurinp
         remote_folder = failed_wc.outputs.last_calc.remote_folder
 
+        # Gate 1: cell size. Densifying k-points makes sense for
+        # primitive/small cells where BZ sampling limits convergence.
+        # For supercells (phonopy displaced cells: 40-80 atoms) the
+        # Brillouin zone is already folded -- the physically-sound
+        # sampling does not grow with cell size, and the unreduced mesh
+        # this retry builds scales FLEUR's per-rank k-pool memory with
+        # (unreduced k-count) x (cell basis), superlinearly.
+        # Production incident (2026-10-13): an 80-atom supercell's retry
+        # built a 252-point unreduced mesh; FLEUR's per-rank VmPeak ran
+        # to tens of GiB and froze a 36 GB node outright (the same retry
+        # class also OOM-crashed runs on a 128 GB node).
+        try:
+            n_sites = len(old_fleurinp.get_structuredata().sites)
+        except Exception:
+            n_sites = None
+        if n_sites is not None and n_sites > MAX_DENSER_RETRY_ATOMS:
+            self.report(
+                f"SCF cell has {n_sites} atoms (> {MAX_DENSER_RETRY_ATOMS}): "
+                f"supercell-scale cell; densifying the k-mesh is physically "
+                f"inappropriate (zone folding) and its unreduced k-point "
+                f"pool is a memory hazard. Skipping the denser-k-mesh retry."
+            )
+            return
+
         cur_nx, cur_ny, cur_nz = _get_kpoint_mesh_dims(
             old_fleurinp.get_content("inp.xml")
         )
@@ -282,6 +383,17 @@ class FleurForcesWorkChain(WorkChain):
             f"k-point mesh {[cur_nx, cur_ny, cur_nz]} -> {[nx, ny, nz]} "
             f"({nx * ny * nz} unreduced points)"
         )
+
+        # Gate 2: absolute cap on the unreduced k-point count, so a large
+        # base mesh cannot explode into an unbounded pool even for
+        # small-cell retries.
+        if nx * ny * nz > MAX_DENSER_RETRY_KPOINTS:
+            self.report(
+                f"Denser mesh would hold {nx * ny * nz} unreduced k-points "
+                f"(> {MAX_DENSER_RETRY_KPOINTS}); memory-prohibitively "
+                f"large. Skipping the denser-k-mesh retry."
+            )
+            return
 
         raw_points = [
             [i / nx, j / ny, k / nz]
@@ -658,7 +770,7 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                 # structures additionally lose symmetry, so the explicit
                 # <kPoint> list barely reduces: production incident
                 # (2026-10-21): a 40-atom displaced supercell ran with 250
-                # explicit k-points; FLEUR's per-rank k-pool memory scales
+                # explicit k-points; FLEUR's per-rank k-pool memory scaled
                 # with (k-count x cell basis) and the node OOM-killed the
                 # run at launch (empty outputs, exit 399) -- on both 36 GB
                 # and 128 GB nodes. The right-sized class on the same
