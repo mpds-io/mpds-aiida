@@ -650,7 +650,21 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                 xml_input = fleur_setup.get_input_setup(label="Fe_fcc")
                 fleur_inp_data = convert_xml_to_FleurInpData(xml_input)
 
-                # Override k-point mesh if kpoints_mesh is specified
+                # Supercell k-mesh sanity (phonopy convention).
+                # inpgen sees the supercell as an ordinary (large) cell and
+                # picks a mesh as if it were primitive: a 2x2x2 supercell
+                # then inherits ~4x4x4, oversampling the already-folded
+                # Brillouin zone by the supercell volume. Displaced
+                # structures additionally lose symmetry, so the explicit
+                # <kPoint> list barely reduces: production incident
+                # (2026-10-21): a 40-atom displaced supercell ran with 250
+                # explicit k-points; FLEUR's per-rank k-pool memory scales
+                # with (k-count x cell basis) and the node OOM-killed the
+                # run at launch (empty outputs, exit 399) -- on both 36 GB
+                # and 128 GB nodes. The right-sized class on the same
+                # workflow is ~6 points and converges in under an hour.
+                # Scale inpgen's mesh down by the supercell factors unless
+                # the caller pins kpoints_mesh explicitly.
                 if "kpoints_mesh" in self.inputs and self.inputs.kpoints_mesh:
                     mesh = self.inputs.kpoints_mesh.get_list()
                     nx, ny, nz = int(mesh[0]), int(mesh[1]), int(mesh[2])
@@ -679,6 +693,56 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                         kpoint_type="mesh",
                     )
                     fleur_inp_data = mod.freeze()
+
+                else:
+                    # No explicit mesh: scale inpgen's choice down by the
+                    # supercell diagonal (min 1), keeping the BZ sampling
+                    # equivalent to the primitive cell's.
+                    try:
+                        sm = self.inputs.supercell_matrix.get_list()
+                        fx = abs(sm[0][0]) or 1
+                        fy = abs(sm[1][1]) or 1
+                        fz = abs(sm[2][2]) or 1
+                        bx, by, bz = _get_kpoint_mesh_dims(
+                            fleur_inp_data.get_content("inp.xml")
+                        )
+                        nx = max(1, -(-bx // fx))
+                        ny = max(1, -(-by // fy))
+                        nz = max(1, -(-bz // fz))
+                        if (nx, ny, nz) != (bx, by, bz):
+                            self.report(
+                                f"Supercell k-mesh scaled by ({fx},{fy},{fz}): "
+                                f"inpgen {bx}x{by}x{bz} -> {nx}x{ny}x{nz} "
+                                f"({nx * ny * nz} unreduced points); pass "
+                                f"kpoints_mesh to override"
+                            )
+                            raw_points = [
+                                [i / nx, j / ny, k / nz]
+                                for i in range(nx)
+                                for j in range(ny)
+                                for k in range(nz)
+                            ]
+                            weights = [1.0 / len(raw_points)] * len(raw_points)
+                            kpoints = KpointsData()
+                            kpoints.set_cell_from_structure(
+                                fleur_inp_data.get_structuredata()
+                            )
+                            kpoints.set_kpoints(
+                                raw_points, cartesian=False, weights=weights
+                            )
+                            kpoints.store()
+                            mod = FleurinpModifier(fleur_inp_data)
+                            mod.set_kpointsdata(
+                                kpoints,
+                                name="supercell_scaled_mesh",
+                                switch=True,
+                                kpoint_type="mesh",
+                            )
+                            fleur_inp_data = mod.freeze()
+                    except Exception as err:
+                        self.report(
+                            f"k-mesh scaling skipped ({err}); inpgen default kept"
+                        )
 
                 inputs["fleurinp"] = fleur_inp_data
 
