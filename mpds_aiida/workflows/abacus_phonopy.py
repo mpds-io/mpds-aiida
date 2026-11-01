@@ -11,6 +11,8 @@ from aiida.orm import (
 from aiida_abacus.workflows.base import AbacusBaseWorkChain
 from aiida_phonopy.workflows.phonopy import PhonopyWorkChain
 
+from ..abacus_forces import read_scf_log, restore_force_order, scf_has_converged
+
 
 class AbacusForcesWorkChain(WorkChain):
     """
@@ -70,6 +72,17 @@ class AbacusForcesWorkChain(WorkChain):
             message="Forces are not in eV/Angstrom, refusing to pass them to phonopy.",
         )
 
+        spec.exit_code(
+            404,
+            "ERROR_FORCE_ORDER",
+            message="Forces cannot be matched to the input atoms.",
+        )
+        spec.exit_code(
+            405,
+            "ERROR_SCF_NOT_CONVERGED",
+            message="The final ABACUS SCF log does not establish convergence.",
+        )
+
         spec.outline(
             cls.run_scf,
             cls.inspect_scf,
@@ -82,6 +95,7 @@ class AbacusForcesWorkChain(WorkChain):
             help="Forces on all atoms of the supercell, eV/Angstrom.",
         )
         spec.output("misc", valid_type=Dict, required=False)
+        spec.output("force_order", valid_type=Dict, required=False)
 
     def run_scf(self):
         builder = AbacusBaseWorkChain.get_builder()
@@ -121,6 +135,15 @@ class AbacusForcesWorkChain(WorkChain):
                 f"ABACUS SCF workchain failed with exit status {scf.exit_status}"
             )
             return self.exit_codes.ERROR_SCF_FAILED
+        try:
+            calculation = scf.outputs.misc.creator
+            log = read_scf_log(calculation)
+        except (AttributeError, KeyError, OSError, ValueError) as exc:
+            self.report(f"Cannot verify SCF convergence: {exc}")
+            return self.exit_codes.ERROR_SCF_NOT_CONVERGED
+        if not scf_has_converged(log):
+            self.report("Refusing forces without convergence in the final SCF log")
+            return self.exit_codes.ERROR_SCF_NOT_CONVERGED
 
     def finalize(self):
         misc = self.ctx.scf.outputs.misc.get_dict()
@@ -130,9 +153,27 @@ class AbacusForcesWorkChain(WorkChain):
             return self.exit_codes.ERROR_NO_FORCES
 
         unit = str(misc.get("force_unit", ""))
-        if "eV" not in unit:
+        if unit.lower().replace(" ", "") not in ("ev/angstrom", "ev/ang", "ev/å"):
             self.report(f"Unexpected forces unit '{unit}', expected eV/Angstrom")
             return self.exit_codes.ERROR_WRONG_FORCES_UNIT
+
+        try:
+            calculation = self.ctx.scf.outputs.misc.creator
+            if (
+                calculation is None
+                or calculation.inputs.parameters.get_dict()["input"]["calculation"]
+                != "scf"
+            ):
+                raise ValueError(
+                    "Force output must come from a single-point SCF CalcJob"
+                )
+            stru = calculation.base.repository.get_object_content("STRU")
+            forces, permutation = restore_force_order(
+                self.inputs.structure, forces, stru
+            )
+        except (ValueError, KeyError, OSError, IndexError) as exc:
+            self.report(f"Cannot restore force order: {exc}")
+            return self.exit_codes.ERROR_FORCE_ORDER
 
         label = self.inputs.structure_label.value
         self.out(
@@ -140,6 +181,15 @@ class AbacusForcesWorkChain(WorkChain):
             Dict(dict={f"forces_{label}": forces}).store(),
         )
         self.out("misc", self.ctx.scf.outputs.misc)
+        self.out(
+            "force_order",
+            Dict(
+                dict={
+                    "abacus_to_structure": permutation,
+                    "source_calcjob_uuid": str(calculation.uuid),
+                }
+            ).store(),
+        )
 
 
 class PhonopyAbacusWorkChain(PhonopyWorkChain):
