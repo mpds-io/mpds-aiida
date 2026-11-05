@@ -1,1 +1,0 @@
-Use the existing AbacusBaseWorkChain and final SCF log checker. Forward misc as output_scf after convergence. Filter ASE candidates with the existing formula parser and stoichiometric ratios before cell selection. Pin the tested plugin in optional deployment requirements.
