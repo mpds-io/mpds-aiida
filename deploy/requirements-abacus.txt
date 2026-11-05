@@ -1,0 +1,2 @@
+# ABACUS 3.11 output parsing, STRU_FINAL and flat_output support.
+aiida-abacus @ git+https://github.com/alinzh/aiida-abacus.git@3f475fd2acb95a2f613eaa804b0849306f9eac71
