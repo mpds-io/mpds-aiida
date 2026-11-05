@@ -1,0 +1,1 @@
+SCF-only requests submit one base workflow and fail unless its final SCF converges. Phonons without optimization retain the original structure without a preliminary SCF. Converted MPDS candidates must match the requested reduced composition; no match produces a composition error.

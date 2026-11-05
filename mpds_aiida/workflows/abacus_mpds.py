@@ -11,6 +11,19 @@ from mpds_client import APIError, MPDSDataRetrieval
 from mpds_aiida.workflows.abacus_base import MPDSAbacusWorkChain
 
 from ..common import get_template
+from ..chemical_formulae import parse_formula
+
+
+def matches_composition(structure, formula):
+    expected = parse_formula(formula)
+    actual = parse_formula(structure.get_chemical_formula())
+    if set(actual) != set(expected) or not expected:
+        return False
+    scale = sum(actual.values()) / sum(expected.values())
+    return all(
+        np.isclose(actual[element], scale * count, rtol=1e-10, atol=1e-10)
+        for element, count in expected.items()
+    )
 
 
 class MPDSAbacusStructureWorkChain(MPDSAbacusWorkChain):
@@ -24,6 +37,11 @@ class MPDSAbacusStructureWorkChain(MPDSAbacusWorkChain):
         spec.exit_code(501, "ERROR_NO_MPDS_API_KEY", message="MPDS API key not set")
         spec.exit_code(502, "ERROR_API_ERROR", message="MPDS API Error")
         spec.exit_code(503, "ERROR_NO_HITS", message="Request returned nothing")
+        spec.exit_code(
+            505,
+            "ERROR_COMPOSITION_MISMATCH",
+            message="No MPDS structure matches the requested composition",
+        )
         spec.exit_code(504, "ERROR_SERVER_NOT_FOUND", message="MPDS server not found")
 
     def init_inputs(self):
@@ -106,6 +124,10 @@ class MPDSAbacusStructureWorkChain(MPDSAbacusWorkChain):
         structs = list(filter(None, structs))
         if not structs:
             return self.exit_codes.ERROR_NO_HITS
+
+        structs = [s for s in structs if matches_composition(s, query_dict["formulae"])]
+        if not structs:
+            return self.exit_codes.ERROR_COMPOSITION_MISMATCH
 
         minimal_struct = min(len(s) for s in structs)
         candidates = [s for s in structs if len(s) == minimal_struct]

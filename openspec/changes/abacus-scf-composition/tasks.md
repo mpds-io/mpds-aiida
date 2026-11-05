@@ -1,0 +1,3 @@
+- [x] Implement SCF execution and verified output.
+- [x] Filter MPDS structures by composition.
+- [x] Add isolated regression tests and deployment pin.

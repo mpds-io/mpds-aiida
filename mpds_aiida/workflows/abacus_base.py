@@ -12,9 +12,11 @@ from aiida.orm import (
     StructureData,
     load_code,
 )
+from aiida_abacus.workflows.base import AbacusBaseWorkChain
 from aiida_abacus.workflows.relax import AbacusRelaxWorkChain
 from aiida_crystal_dft.utils import recursive_update
 
+from ..abacus_forces import read_scf_log, scf_has_converged
 from ..common import get_template
 from .abacus_phonopy import PhonopyAbacusWorkChain
 
@@ -52,6 +54,7 @@ class MPDSAbacusWorkChain(WorkChain):
             cls.init_inputs,
             cls.run_optimization,
             cls.inspect_optimization,
+            if_(cls.need_scf)(cls.run_scf, cls.inspect_scf),
             if_(cls.need_phonons)(
                 cls.run_phonons,
                 cls.inspect_phonons,
@@ -67,6 +70,13 @@ class MPDSAbacusWorkChain(WorkChain):
             "ERROR_PHONONS_FAILED",
             message="Phonon calculation failed",
         )
+        spec.exit_code(414, "ERROR_SCF_FAILED", message="SCF calculation failed")
+        spec.exit_code(
+            415,
+            "ERROR_SCF_NOT_CONVERGED",
+            message="SCF convergence could not be verified",
+        )
+        spec.output("output_scf", valid_type=Dict, required=False)
         spec.output("optimized_structure", valid_type=StructureData, required=False)
         spec.output("output_phonopy", valid_type=Dict, required=False)
 
@@ -100,6 +110,44 @@ class MPDSAbacusWorkChain(WorkChain):
 
     def need_phonons(self):
         return self.ctx.need_phonons
+
+    def need_scf(self):
+        return self.ctx.calculation == "scf" and not self.ctx.need_phonons
+
+    def run_scf(self):
+        options = self.ctx.config["options"]
+        parameters = deepcopy(
+            self.ctx.config.get("default", {}).get("scf", {}).get("input", {})
+        )
+        parameters["calculation"] = "scf"
+        builder = AbacusBaseWorkChain.get_builder()
+        builder.abacus.code = load_code(self.ctx.codes["abacus"])
+        builder.abacus.structure = self.ctx.structure
+        builder.abacus.parameters = Dict(dict={"input": parameters})
+        if "yascheduler" in self.ctx.codes["abacus"]:
+            builder.abacus.settings = Dict(dict={"flat_output": True})
+        kpoints = KpointsData()
+        kpoints.set_cell_from_structure(self.ctx.structure)
+        kpoints.set_kpoints_mesh(list(options.get("kpoints", [4, 4, 4])))
+        builder.kpoints = kpoints
+        if options.get("pseudo_family"):
+            builder.pseudo_family = Str(options["pseudo_family"])
+        builder.abacus.metadata.options = self.ctx.options_run
+        builder.metadata.label = f"{self.ctx.phase_label} - scf"
+        return ToContext(scf=self.submit(builder))
+
+    def inspect_scf(self):
+        scf = self.ctx.scf
+        if not scf.is_finished_ok:
+            return self.exit_codes.ERROR_SCF_FAILED
+        try:
+            converged = scf_has_converged(read_scf_log(scf.outputs.misc.creator))
+        except (AttributeError, KeyError, OSError, ValueError) as exc:
+            self.report(f"Cannot verify SCF convergence: {exc}")
+            return self.exit_codes.ERROR_SCF_NOT_CONVERGED
+        if not converged:
+            return self.exit_codes.ERROR_SCF_NOT_CONVERGED
+        self.out("output_scf", scf.outputs.misc)
 
     def run_optimization(self):
         if not self.ctx.optimize or self.ctx.calculation == "scf":
