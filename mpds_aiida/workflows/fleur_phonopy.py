@@ -379,7 +379,17 @@ class FleurForcesWorkChain(WorkChain):
                     "withmpi": True,
                 }
             )
+            # The displacement number stays bracket-free on purpose: the MPDS
+            # monitor's archive naming strips a trailing "[n]" from labels, so
+            # every displacement would collide on one directory name.
+            number = (
+                self.inputs.structure_label.value
+                if "structure_label" in self.inputs
+                else None
+            )
             label = "Fleur forces calculation"
+            if number is not None:
+                label = f"{label} {number}"
             description = "Fleur run for forces after SCF"
             settings = (
                 self.inputs.settings.get_dict() if "settings" in self.inputs else None
@@ -690,6 +700,11 @@ class PhonopyFleurWorkChain(PhonopyWorkChain):
                 return ExitCode(404)
 
             inputs["structure_label"] = Str(number)
+            # Without a label the MPDS monitor skips the node entirely, so a
+            # standalone phonon run would report nothing at all.
+            inputs["metadata"] = {
+                "label": f"{self.node.label or 'Fleur phonons'} [{number}]"
+            }
             futures[number] = self.submit(FleurForcesWorkChain, **inputs)
 
         self.report(
