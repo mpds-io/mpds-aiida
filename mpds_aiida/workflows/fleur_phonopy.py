@@ -27,6 +27,14 @@ from aiida_reoptimize.structure.magmoms_utils import (
 )
 from ase.units import Bohr, Hartree
 
+# Production-safety gates for retry_scf_with_denser_kmesh:
+# supercell-scale cells must not get their irreducible k-mesh densified
+# (zone folding makes it physically pointless; FLEUR's per-rank k-pool
+# memory scales with unreduced k-count x cell basis and froze a 36 GB RAM
+# node / OOM-crashed a 128 GB node), and no retry may build an unbounded k-point pool.
+MAX_DENSER_RETRY_ATOMS = 20
+MAX_DENSER_RETRY_KPOINTS = 64
+
 HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM = Hartree / Bohr  # 27.211386245988 / 0.529177210903
 
 
@@ -274,6 +282,26 @@ class FleurForcesWorkChain(WorkChain):
         old_fleurinp = failed_wc.outputs.fleurinp
         remote_folder = failed_wc.outputs.last_calc.remote_folder
 
+        # Gate 1: cell size. Densifying k-points makes sense for
+        # primitive/small cells where BZ sampling limits convergence.
+        # For supercells (phonopy displaced cells: 40-80 atoms) the
+        # Brillouin zone is already folded -- the physically-sound
+        # sampling does not grow with cell size, and the unreduced mesh
+        # this retry builds scales FLEUR's per-rank k-pool memory with
+        # (unreduced k-count) x (cell basis), superlinearly.
+        try:
+            n_sites = len(old_fleurinp.get_structuredata().sites)
+        except Exception:
+            n_sites = None
+        if n_sites is not None and n_sites > MAX_DENSER_RETRY_ATOMS:
+            self.report(
+                f"SCF cell has {n_sites} atoms (> {MAX_DENSER_RETRY_ATOMS}): "
+                f"supercell-scale cell; densifying the k-mesh is physically "
+                f"inappropriate (zone folding) and its irreducible k-point "
+                f"pool is a memory hazard. Skipping the denser-k-mesh retry."
+            )
+            return
+
         cur_nx, cur_ny, cur_nz = _get_kpoint_mesh_dims(
             old_fleurinp.get_content("inp.xml")
         )
@@ -282,6 +310,17 @@ class FleurForcesWorkChain(WorkChain):
             f"k-point mesh {[cur_nx, cur_ny, cur_nz]} -> {[nx, ny, nz]} "
             f"({nx * ny * nz} unreduced points)"
         )
+
+        # Gate 2: absolute cap on the unreduced k-point count, so a large
+        # base mesh cannot explode into an unbounded pool even for
+        # small-cell retries.
+        if nx * ny * nz > MAX_DENSER_RETRY_KPOINTS:
+            self.report(
+                f"Denser mesh would hold {nx * ny * nz} irreducible k-points "
+                f"(> {MAX_DENSER_RETRY_KPOINTS}); memory-prohibitively "
+                f"large. Skipping the denser-k-mesh retry."
+            )
+            return
 
         raw_points = [
             [i / nx, j / ny, k / nz]
