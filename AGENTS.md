@@ -208,6 +208,42 @@ the preferred replacement for these manual scripts.
 
 ## Conventions
 
+### Implicit platform knowledge: AiiDA resources vs yascheduler dispatch vs FLEUR parallelism
+
+The `resources` dict in a CalcJob submission and the actual compute layout
+are **three different things read by three different layers**. Do not assume
+the declared resources describe what runs:
+
+- **aiida-fleur (third-party):** `num_mpiprocs_per_machine` is a
+  *k-point-divisibility validation token*, not a resource request.
+  `FleurBaseWorkChain.check_kpts`/`optimize_calc_options` rejects the
+  submission with exit 390 when the declared MPI count does not divide the
+  fleurinp k-point set; 1 MPI always passes (everything divides by 1). With
+  `optimize_resources=True`, check_kpts **rewrites the declared value** to
+  its own k-multiple before submission — even a correct declaration mutates.
+  `add_comp_para.forbid_single_mpi` defaults to False; if it is set True,
+  the 1-MPI recipe below rejects everything (exit 390).
+- **AiiDA core:** logs `resources` as the scheduler resource request — a
+  provenance artifact that *does not describe* what ran. Never audit a
+  yac-submitted FLEUR calc's resources field to learn the real layout.
+- **yascheduler:** **ignores the resources entirely**. Dispatch is strictly
+  one-task-per-node (a node is busy while it has a RUNNING task; there is no
+  per-CPU accounting). The real MPI/OMP layout is decided at dispatch time
+  by the k-adaptive `[engine.fleur]` spawn in the yascheduler config
+  (np = largest divisor of nkpt <= ncpus; OMP = ncpus/np).
+
+**Standing FLEUR submission recipe (gate token only):**
+`{'num_machines': 1, 'num_mpiprocs_per_machine': 1, 'optimize_resources': True}`
+plus `add_comp_para.forbid_single_mpi=False`. At launch time, record the truth
+in the workchain `metadata.description` (e.g. "real np/OMP decided by the
+k-adaptive spawn at dispatch; the AiiDA resources field is gate-only").
+
+Related dispatch caveat (yascheduler <= 1.8; fixed upstream in v3.0.0 by
+claim-before-spawn): the busy-node set is updated only *after*
+`start_task_on_machine` completes its SSH upload, so concurrent allocations
+can race several tasks onto one node and collide. Do not bulk-unblock a
+queue of same-engine tasks at once on older yascheduler versions.
+
 - Code style is enforced by `ruff` (config in `.pre-commit-config.yaml`).
   Run `ruff check` and `ruff format` before committing. Pre-commit also runs
   `trailing-whitespace`, `check-toml`, `check-yaml`, `detect-private-key`, etc.
