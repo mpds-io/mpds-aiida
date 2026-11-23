@@ -1,0 +1,38 @@
+codes:
+  abacus: abacus@local_machine
+  phonopy: phonopy@local_machine
+
+options:
+  need_phonons: true
+  optimize_structure: true
+  calculation: cell-relax        # scf | relax | cell-relax
+  pseudo_family: PseudoDojo/0.4/PBE/SR/standard/upf
+  kpoints: [8, 8, 8]             # Gamma-centred mesh for the unit cell, used at optimization
+  kpoints_distance: 0.15          # min k-spacing, 1/Angstrom, auto-mesh for the phonon supercells
+  force_thr_ev: 0.0257           # force convergence threshold, eV/Angstrom (~1e-3 Ha/Bohr)
+  relax_nmax: 50                 # max ionic relaxation steps
+  run:                           # AiiDA metadata.options for every ABACUS CalcJob
+    withmpi: false
+    prepend_text: export OMP_NUM_THREADS=4 && export OPENBLAS_NUM_THREADS=4
+    resources:
+      num_machines: 1
+      num_mpiprocs_per_machine: 1
+    max_wallclock_seconds: 43200
+
+default:
+  scf:
+    input:
+      ecutwfc: 100               # Ry; set to null to use the recommended cutoffs from the pseudo family
+      scf_thr: 1.0e-6            # energy convergence threshold, Ry
+      scf_nmax: 100
+      basis_type: pw             # pw | lcao
+      ks_solver: dav             # Davidson; uses ELPA on ELPA-enabled builds
+      smearing_method: gauss     # gauss | fixed
+      smearing_sigma: 0.015      # Ry
+
+calculations:
+  phonons:
+    parameters:
+      supercell_matrix: [[2, 0, 0], [0, 2, 0], [0, 0, 2]]
+      phonopy_parameters:
+        WRITE_FORCE_CONSTANTS: true

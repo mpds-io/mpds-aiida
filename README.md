@@ -121,3 +121,12 @@ Please, report any issues in the respective repositories: [aiida-crystal-dft](ht
 The Google Cloud machines need first to be prepared via the web-browser SSH console (note `sudo -i`). The file `/etc/ssh/sshd_config` should be changed to allow `root` user to log in.
 
 The Amazon EC2 machines need first to be accessed with the `admin` user (note `sudo -i`). Then the file `/root/.ssh/authorized_keys` needs to be cleaned to allow `root` user to log in.
+
+For ABACUS deployments, install the tested plugin revision after the project:
+
+```shell
+pip install -r deploy/requirements-abacus.txt
+```
+
+This pins the fork with ABACUS 3.11 parsing, STRU_FINAL and flat_output support.
+The generic aiida-abacus dependency alone does not guarantee these patches.
